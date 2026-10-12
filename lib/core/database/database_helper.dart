@@ -20,13 +20,7 @@ class DatabaseHelper {
 
     try {
       if (_database != null) return _database!;
-      _database = await _initDB(DatabaseSchema.databaseName).timeout(
-        const Duration(seconds: 4),
-        onTimeout: () {
-          debugPrint('DatabaseHelper: Timeout al abrir SQLite');
-          throw TimeoutException('SQLite timeout');
-        },
-      );
+      _database = await _initDB(DatabaseSchema.databaseName);
       return _database!;
     } catch (e) {
       debugPrint('DatabaseHelper SQLite warning: $e');
