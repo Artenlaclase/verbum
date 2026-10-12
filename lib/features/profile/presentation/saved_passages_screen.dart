@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../bible/presentation/search_screen.dart';
-import '../models/saved_passage.dart';
+
 
 class SavedPassagesScreen extends ConsumerWidget {
   const SavedPassagesScreen({super.key});

@@ -335,7 +335,7 @@ class _ChapterReaderScreenState extends ConsumerState<ChapterReaderScreen> {
             return AlertDialog(
               title: Row(
                 children: [
-                  const Icon(Icons.bookmark_star_rounded, color: AppTheme.primaryGold),
+                  const Icon(Icons.bookmark_added_rounded, color: AppTheme.primaryGold),
                   const SizedBox(width: 8),
                   const Text('Guardar en mi Perfil'),
                 ],

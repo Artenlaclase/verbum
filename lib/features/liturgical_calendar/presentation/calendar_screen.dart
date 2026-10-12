@@ -208,8 +208,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   }
 
   Widget _buildSelectedDayDetail(BuildContext context, LiturgicalDay day) {
-    final theme = Theme.of(context);
     final cardColor = day.color;
+
     final textColor = LiturgicalColors.getContrastText(cardColor);
 
     return Container(
