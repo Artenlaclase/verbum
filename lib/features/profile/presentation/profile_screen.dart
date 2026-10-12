@@ -228,7 +228,7 @@ class ProfileScreen extends ConsumerWidget {
                       underline: const SizedBox(),
                       onChanged: (mode) {
                         if (mode != null) {
-                          ref.read(themeModeStateProvider.notifier).state = mode;
+                          ref.read(themeModeStateProvider.notifier).setThemeMode(mode);
                         }
                       },
                       items: const [

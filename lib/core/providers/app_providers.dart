@@ -36,8 +36,15 @@ final bookmarkProvider = FutureProvider<Bookmark?>((ref) async {
   return repo.getBookmark();
 });
 
-// Proveedor de pasajes guardados filtrables
-final selectedTagFilterProvider = StateProvider<String>((ref) => 'Todos');
+// Notifier para filtro de etiquetas de pasajes
+class SelectedTagNotifier extends Notifier<String> {
+  @override
+  String build() => 'Todos';
+  void setTag(String tag) => state = tag;
+}
+
+final selectedTagFilterProvider =
+    NotifierProvider<SelectedTagNotifier, String>(SelectedTagNotifier.new);
 
 final savedPassagesProvider = FutureProvider<List<SavedPassage>>((ref) async {
   final repo = ref.watch(profileRepositoryProvider);
@@ -45,16 +52,30 @@ final savedPassagesProvider = FutureProvider<List<SavedPassage>>((ref) async {
   return repo.getSavedPassages(etiqueta: tag == 'Todos' ? null : tag);
 });
 
-// Proveedor del día litúrgico seleccionado (por defecto hoy)
-final selectedLiturgicalDateProvider = StateProvider<DateTime>((ref) => DateTime.now());
+// Notifier para fecha litúrgica seleccionada
+class SelectedLiturgicalDateNotifier extends Notifier<DateTime> {
+  @override
+  DateTime build() => DateTime.now();
+  void setDate(DateTime date) => state = date;
+}
+
+final selectedLiturgicalDateProvider =
+    NotifierProvider<SelectedLiturgicalDateNotifier, DateTime>(SelectedLiturgicalDateNotifier.new);
 
 final currentLiturgicalDayProvider = Provider<LiturgicalDay>((ref) {
   final selectedDate = ref.watch(selectedLiturgicalDateProvider);
   return LiturgicalCalculator.getLiturgicalDay(selectedDate);
 });
 
-// Proveedor de libros bíblicos
-final bibleTestamentFilterProvider = StateProvider<String?>((ref) => null); // null = Todos, 'AT', 'NT'
+// Notifier para filtro de testamento (null = Todos, 'AT', 'NT')
+class BibleTestamentFilterNotifier extends Notifier<String?> {
+  @override
+  String? build() => null;
+  void setFilter(String? filter) => state = filter;
+}
+
+final bibleTestamentFilterProvider =
+    NotifierProvider<BibleTestamentFilterNotifier, String?>(BibleTestamentFilterNotifier.new);
 
 final bibleBooksProvider = FutureProvider<List<BibleBook>>((ref) async {
   final repo = ref.watch(bibleRepositoryProvider);
@@ -62,5 +83,12 @@ final bibleBooksProvider = FutureProvider<List<BibleBook>>((ref) async {
   return repo.getBooks(testamento: filter);
 });
 
-// Proveedor de modo oscuro / claro
-final themeModeStateProvider = StateProvider<ThemeMode>((ref) => ThemeMode.system);
+// Notifier para ThemeMode (claro / oscuro / sistema)
+class ThemeModeNotifier extends Notifier<ThemeMode> {
+  @override
+  ThemeMode build() => ThemeMode.system;
+  void setThemeMode(ThemeMode mode) => state = mode;
+}
+
+final themeModeStateProvider =
+    NotifierProvider<ThemeModeNotifier, ThemeMode>(ThemeModeNotifier.new);

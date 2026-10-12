@@ -45,7 +45,7 @@ class SavedPassagesScreen extends ConsumerWidget {
                     color: isSelected ? AppTheme.primaryGold : null,
                   ),
                   onSelected: (_) {
-                    ref.read(selectedTagFilterProvider.notifier).state = tag;
+                    ref.read(selectedTagFilterProvider.notifier).setTag(tag);
                   },
                 );
               },
