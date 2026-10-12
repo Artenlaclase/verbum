@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
@@ -10,14 +11,30 @@ class DatabaseHelper {
 
   DatabaseHelper._init();
 
-  Future<Database> get database async {
-    if (_database != null) return _database!;
-    _database = await _initDB(DatabaseSchema.databaseName);
-    return _database!;
+  /// Retorna la base de datos SQLite si está disponible en la plataforma activa.
+  /// En Web o en caso de fallo, retorna null de forma segura sin bloquear la app.
+  Future<Database?> get database async {
+    if (kIsWeb) {
+      return null;
+    }
+
+    try {
+      if (_database != null) return _database!;
+      _database = await _initDB(DatabaseSchema.databaseName).timeout(
+        const Duration(seconds: 4),
+        onTimeout: () {
+          debugPrint('DatabaseHelper: Timeout al abrir SQLite');
+          throw TimeoutException('SQLite timeout');
+        },
+      );
+      return _database!;
+    } catch (e) {
+      debugPrint('DatabaseHelper SQLite warning: $e');
+      return null;
+    }
   }
 
   Future<Database> _initDB(String filePath) async {
-    // Inicializar FFI o Web según la plataforma
     initPlatformDatabase();
 
     String path;
