@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import '../../../core/database/database_helper.dart';
 import '../../../core/utils/bible_reference_parser.dart';
@@ -14,76 +15,104 @@ class BibleRepository {
   /// Asegura que los metadatos de los libros y los versículos semilla estén en la base de datos
   Future<void> ensureInitialized() async {
     final db = await _dbHelper.database;
-    final count = Sqflite.firstIntValue(
-      await db.rawQuery('SELECT COUNT(*) FROM libros'),
-    );
+    if (db == null) return; // En Web o si SQLite no está disponible, usamos datos en memoria
 
-    if (count == null || count == 0) {
-      await db.transaction((txn) async {
-        // 1. Insertar versión RVR09
-        await txn.insert(
-          'versiones',
-          BibleInitialData.versionRVR09,
-          conflictAlgorithm: ConflictAlgorithm.replace,
-        );
+    try {
+      final count = Sqflite.firstIntValue(
+        await db.rawQuery('SELECT COUNT(*) FROM libros'),
+      );
 
-        // 2. Insertar los 66 libros
-        for (final book in BibleInitialData.books) {
+      if (count == null || count == 0) {
+        await db.transaction((txn) async {
+          // 1. Insertar versión RVR09
           await txn.insert(
-            'libros',
-            book.toMap(),
+            'versiones',
+            BibleInitialData.versionRVR09,
             conflictAlgorithm: ConflictAlgorithm.replace,
           );
-        }
 
-        // 3. Insertar versículos semilla
-        for (final verse in BibleInitialData.seedVerses) {
-          await txn.insert(
-            'versiculos',
-            verse.toMap(),
-            conflictAlgorithm: ConflictAlgorithm.replace,
-          );
-        }
-      });
+          // 2. Insertar los 66 libros
+          for (final book in BibleInitialData.books) {
+            await txn.insert(
+              'libros',
+              book.toMap(),
+              conflictAlgorithm: ConflictAlgorithm.replace,
+            );
+          }
+
+          // 3. Insertar versículos semilla
+          for (final verse in BibleInitialData.seedVerses) {
+            await txn.insert(
+              'versiculos',
+              verse.toMap(),
+              conflictAlgorithm: ConflictAlgorithm.replace,
+            );
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('BibleRepository init warning: $e');
     }
   }
 
   /// Retorna la lista de todos los libros ordenados canónicamente
   Future<List<BibleBook>> getBooks({String? testamento}) async {
-    await ensureInitialized();
     final db = await _dbHelper.database;
 
-    List<Map<String, dynamic>> maps;
-    if (testamento != null) {
-      maps = await db.query(
-        'libros',
-        where: 'testamento = ?',
-        whereArgs: [testamento],
-        orderBy: 'orden ASC',
-      );
-    } else {
-      maps = await db.query('libros', orderBy: 'orden ASC');
+    // En Web o como respaldo infalible
+    if (db == null) {
+      if (testamento != null) {
+        return BibleInitialData.books.where((b) => b.testamento == testamento).toList();
+      }
+      return BibleInitialData.books;
     }
 
-    return maps.map((map) {
-      final book = BibleInitialData.books.firstWhere(
-        (b) => b.id == map['id'],
-        orElse: () => BibleBook.fromMap(map),
-      );
-      return book;
-    }).toList();
+    try {
+      await ensureInitialized();
+      List<Map<String, dynamic>> maps;
+      if (testamento != null) {
+        maps = await db.query(
+          'libros',
+          where: 'testamento = ?',
+          whereArgs: [testamento],
+          orderBy: 'orden ASC',
+        );
+      } else {
+        maps = await db.query('libros', orderBy: 'orden ASC');
+      }
+
+      if (maps.isNotEmpty) {
+        return maps.map((map) {
+          final book = BibleInitialData.books.firstWhere(
+            (b) => b.id == map['id'],
+            orElse: () => BibleBook.fromMap(map),
+          );
+          return book;
+        }).toList();
+      }
+    } catch (e) {
+      debugPrint('BibleRepository getBooks fallback: $e');
+    }
+
+    if (testamento != null) {
+      return BibleInitialData.books.where((b) => b.testamento == testamento).toList();
+    }
+    return BibleInitialData.books;
   }
 
   /// Obtiene un libro por su ID
   Future<BibleBook?> getBookById(int id) async {
-    await ensureInitialized();
     try {
       return BibleInitialData.books.firstWhere((b) => b.id == id);
     } catch (_) {
       final db = await _dbHelper.database;
-      final maps = await db.query('libros', where: 'id = ?', whereArgs: [id]);
-      if (maps.isNotEmpty) {
-        return BibleBook.fromMap(maps.first);
+      if (db != null) {
+        try {
+          final maps = await db.query('libros', where: 'id = ?', whereArgs: [id]);
+          if (maps.isNotEmpty) {
+            return BibleBook.fromMap(maps.first);
+          }
+        } catch (_) {}
       }
       return null;
     }
@@ -91,24 +120,49 @@ class BibleRepository {
 
   /// Obtiene los versículos de un libro y capítulo específico
   Future<List<BibleVerse>> getVerses(int libroId, int capitulo) async {
-    await ensureInitialized();
+    final book = await getBookById(libroId);
     final db = await _dbHelper.database;
 
-    final maps = await db.rawQuery('''
-      SELECT v.*, l.nombre AS libro_nombre, l.abreviatura AS libro_abreviatura
-      FROM versiculos v
-      JOIN libros l ON v.libro_id = l.id
-      WHERE v.libro_id = ? AND v.capitulo = ?
-      ORDER BY v.numero ASC
-    ''', [libroId, capitulo]);
+    // 1. Si hay base de datos SQLite disponible, consultar
+    if (db != null) {
+      try {
+        await ensureInitialized();
+        final maps = await db.rawQuery('''
+          SELECT v.*, l.nombre AS libro_nombre, l.abreviatura AS libro_abreviatura
+          FROM versiculos v
+          JOIN libros l ON v.libro_id = l.id
+          WHERE v.libro_id = ? AND v.capitulo = ?
+          ORDER BY v.numero ASC
+        ''', [libroId, capitulo]);
 
-    if (maps.isNotEmpty) {
-      return maps.map((m) => BibleVerse.fromMap(m)).toList();
+        if (maps.isNotEmpty) {
+          return maps.map((m) => BibleVerse.fromMap(m)).toList();
+        }
+      } catch (e) {
+        debugPrint('BibleRepository getVerses fallback: $e');
+      }
     }
 
-    // Si los versículos de este capítulo específico aún no están poblados en la BD SQLite local,
-    // proveemos una representación legible y respetuosa para que la lectura fluya en el MVP
-    final book = await getBookById(libroId);
+    // 2. Si estamos en Web o los versículos no estaban en la BD SQLite:
+    // Buscar primero en los versículos semilla precargados
+    final inMemoryMatches = BibleInitialData.seedVerses
+        .where((v) => v.libroId == libroId && v.capitulo == capitulo)
+        .map((v) => BibleVerse(
+              id: v.id,
+              libroId: v.libroId,
+              capitulo: v.capitulo,
+              numero: v.numero,
+              texto: v.texto,
+              libroNombre: book?.nombre,
+              libroAbreviatura: book?.abreviatura,
+            ))
+        .toList();
+
+    if (inMemoryMatches.isNotEmpty) {
+      return inMemoryMatches;
+    }
+
+    // 3. Generar versículos representativos para el capítulo seleccionado
     return List.generate(15, (index) {
       final num = index + 1;
       return BibleVerse(
@@ -125,10 +179,10 @@ class BibleRepository {
 
   /// Búsqueda por texto o palabra clave
   Future<List<BibleVerse>> searchVerses(String query) async {
-    await ensureInitialized();
-    if (query.trim().isEmpty) return [];
+    final clean = query.trim();
+    if (clean.isEmpty) return [];
 
-    final parsed = BibleReferenceParser.parse(query);
+    final parsed = BibleReferenceParser.parse(clean);
     if (parsed != null) {
       // Búsqueda por cita directa
       final book = findBookByQuery(parsed.bookQuery);
@@ -145,17 +199,45 @@ class BibleRepository {
     }
 
     final db = await _dbHelper.database;
-    final pattern = '%${query.trim()}%';
-    final maps = await db.rawQuery('''
-      SELECT v.*, l.nombre AS libro_nombre, l.abreviatura AS libro_abreviatura
-      FROM versiculos v
-      JOIN libros l ON v.libro_id = l.id
-      WHERE v.texto LIKE ?
-      ORDER BY l.orden ASC, v.capitulo ASC, v.numero ASC
-      LIMIT 50
-    ''', [pattern]);
+    if (db != null) {
+      try {
+        await ensureInitialized();
+        final pattern = '%$clean%';
+        final maps = await db.rawQuery('''
+          SELECT v.*, l.nombre AS libro_nombre, l.abreviatura AS libro_abreviatura
+          FROM versiculos v
+          JOIN libros l ON v.libro_id = l.id
+          WHERE v.texto LIKE ?
+          ORDER BY l.orden ASC, v.capitulo ASC, v.numero ASC
+          LIMIT 50
+        ''', [pattern]);
 
-    return maps.map((m) => BibleVerse.fromMap(m)).toList();
+        if (maps.isNotEmpty) {
+          return maps.map((m) => BibleVerse.fromMap(m)).toList();
+        }
+      } catch (e) {
+        debugPrint('BibleRepository search fallback: $e');
+      }
+    }
+
+    // En memoria / Web: buscar en versículos semilla
+    final lower = clean.toLowerCase();
+    final results = <BibleVerse>[];
+    for (final v in BibleInitialData.seedVerses) {
+      if (v.texto.toLowerCase().contains(lower)) {
+        final book = await getBookById(v.libroId);
+        results.add(BibleVerse(
+          id: v.id,
+          libroId: v.libroId,
+          capitulo: v.capitulo,
+          numero: v.numero,
+          texto: v.texto,
+          libroNombre: book?.nombre,
+          libroAbreviatura: book?.abreviatura,
+        ));
+      }
+    }
+    return results;
   }
 
   BibleBook? findBookByQuery(String query) {
