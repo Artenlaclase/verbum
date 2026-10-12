@@ -67,7 +67,7 @@ class QuickActionsGrid extends StatelessWidget {
             ),
             _buildTile(
               context: context,
-              icon: Icons.bookmark_star_rounded,
+              icon: Icons.bookmark_added_rounded,
               color: LiturgicalColors.dorado,
               label: 'Mis Pasajes',
               subtitle: 'Guardados',

@@ -70,8 +70,8 @@ class LiturgicalCalculator {
     final palmSunday = easter.subtract(const Duration(days: 7));
     final pentecost = easter.add(const Duration(days: 49));
     final advent = getFirstSundayOfAdvent(year);
-    final prevAdvent = getFirstSundayOfAdvent(year - 1);
     final christmas = DateTime.utc(year, 12, 25);
+
     final epiphany = DateTime.utc(year, 1, 6);
     // Bautismo del Señor: domingo después de Epifanía
     final baptismDays = (7 - epiphany.weekday) % 7;

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/liturgical_colors.dart';
+import '../../../core/theme/liturgical_colors.dart';
 import 'daily_reading.dart';
+
 
 class LiturgicalDay {
   final DateTime fecha;

@@ -64,7 +64,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             label: 'Calendario',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.bookmark_star_rounded),
+            icon: Icon(Icons.bookmark_added_rounded),
             label: 'Guardados',
           ),
           BottomNavigationBarItem(

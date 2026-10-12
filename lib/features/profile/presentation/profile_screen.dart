@@ -144,7 +144,7 @@ class ProfileScreen extends ConsumerWidget {
                     const SizedBox(width: 10),
                     _buildStatCard(
                       context: context,
-                      icon: Icons.bookmark_star_rounded,
+                      icon: Icons.bookmark_added_rounded,
                       color: AppTheme.primaryGold,
                       value: '${stats["pasajesGuardados"]}',
                       label: 'Guardados',
@@ -180,7 +180,7 @@ class ProfileScreen extends ConsumerWidget {
               child: Column(
                 children: [
                   ListTile(
-                    leading: const Icon(Icons.bookmark_star_rounded, color: AppTheme.primaryGold),
+                    leading: const Icon(Icons.bookmark_added_rounded, color: AppTheme.primaryGold),
                     title: const Text('Mis Pasajes Guardados', style: TextStyle(fontWeight: FontWeight.w600)),
                     subtitle: const Text('Textos favoritos con etiquetas temáticas'),
                     trailing: const Icon(Icons.chevron_right_rounded),
