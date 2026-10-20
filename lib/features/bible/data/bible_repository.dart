@@ -193,24 +193,16 @@ class BibleRepository {
     });
   }
 
-  /// Búsqueda por texto o palabra clave
+  /// Búsqueda por cita bíblica o texto clave
   Future<List<BibleVerse>> searchVerses(String query) async {
     final clean = query.trim();
     if (clean.isEmpty) return [];
 
     final parsed = BibleReferenceParser.parse(clean);
     if (parsed != null) {
-      // Búsqueda por cita directa (ej. "Génesis 2:1", "Jn 3:16", "Salmo 23")
       final book = findBookByQuery(parsed.bookQuery);
       if (book != null) {
-        final chapterVerses = await getVerses(book.id, parsed.chapter);
-        if (parsed.startVerse != null) {
-          final end = parsed.endVerse ?? parsed.startVerse!;
-          return chapterVerses
-              .where((v) => v.numero >= parsed.startVerse! && v.numero <= end)
-              .toList();
-        }
-        return chapterVerses;
+        return await getVersesForReference(book, parsed);
       }
     }
 
@@ -236,16 +228,162 @@ class BibleRepository {
     return results;
   }
 
+  /// Obtiene todos los versículos cubiertos por una cita bíblica parseada
+  Future<List<BibleVerse>> getVersesForReference(
+    BibleBook book,
+    ParsedBibleReference parsed,
+  ) async {
+    final results = <BibleVerse>[];
+    final seenVerseKeys = <String>{};
+
+    for (final range in parsed.ranges) {
+      if (range.startChapter == range.endChapter) {
+        final chapterVerses = await getVerses(book.id, range.startChapter);
+        if (range.startVerse == null) {
+          // Capítulo completo
+          for (final v in chapterVerses) {
+            final key = '${v.capitulo}:${v.numero}';
+            if (seenVerseKeys.add(key)) results.add(v);
+          }
+        } else {
+          final startV = range.startVerse!;
+          final endV = range.endVerse ?? startV;
+          final matched = chapterVerses.where(
+            (v) => v.numero >= startV && v.numero <= endV,
+          );
+          for (final v in matched) {
+            final key = '${v.capitulo}:${v.numero}';
+            if (seenVerseKeys.add(key)) results.add(v);
+          }
+        }
+      } else {
+        // Rango que cruza capítulos (ej: 4:31-5:1)
+        for (int ch = range.startChapter; ch <= range.endChapter; ch++) {
+          final chapterVerses = await getVerses(book.id, ch);
+          if (ch == range.startChapter) {
+            final startV = range.startVerse ?? 1;
+            final matched = chapterVerses.where((v) => v.numero >= startV);
+            for (final v in matched) {
+              final key = '${v.capitulo}:${v.numero}';
+              if (seenVerseKeys.add(key)) results.add(v);
+            }
+          } else if (ch == range.endChapter) {
+            final endV = range.endVerse ?? (chapterVerses.isNotEmpty ? chapterVerses.last.numero : 999);
+            final matched = chapterVerses.where((v) => v.numero <= endV);
+            for (final v in matched) {
+              final key = '${v.capitulo}:${v.numero}';
+              if (seenVerseKeys.add(key)) results.add(v);
+            }
+          } else {
+            // Capítulos intermedios completos
+            for (final v in chapterVerses) {
+              final key = '${v.capitulo}:${v.numero}';
+              if (seenVerseKeys.add(key)) results.add(v);
+            }
+          }
+        }
+      }
+    }
+
+    return results;
+  }
+
   BibleBook? findBookByQuery(String query) {
-    final clean = query.trim().toLowerCase();
+    final clean = _normalize(query);
+    if (clean.isEmpty) return null;
+
+    // 1. Coincidencia exacta con abreviatura normalizada
     for (final b in BibleInitialData.books) {
-      if (b.nombre.toLowerCase() == clean ||
-          b.abreviatura.toLowerCase() == clean ||
-          b.nombre.toLowerCase().startsWith(clean) ||
-          clean.startsWith(b.nombre.toLowerCase())) {
+      if (_normalize(b.abreviatura) == clean) {
         return b;
       }
     }
+
+    // 2. Coincidencia exacta con nombre normalizado
+    for (final b in BibleInitialData.books) {
+      if (_normalize(b.nombre) == clean) {
+        return b;
+      }
+    }
+
+    // 3. Diccionario de alias comunes
+    final aliasId = _bookAliases[clean];
+    if (aliasId != null) {
+      try {
+        return BibleInitialData.books.firstWhere((b) => b.id == aliasId);
+      } catch (_) {}
+    }
+
+    // 4. Prefijo en nombre o abreviatura
+    for (final b in BibleInitialData.books) {
+      final normName = _normalize(b.nombre);
+      final normAbbr = _normalize(b.abreviatura);
+      if (normName.startsWith(clean) || (clean.length >= 2 && normAbbr.startsWith(clean))) {
+        return b;
+      }
+    }
+
+    // 5. Inverso: Si la query empieza con el nombre completo
+    for (final b in BibleInitialData.books) {
+      final normName = _normalize(b.nombre);
+      if (clean.startsWith(normName)) {
+        return b;
+      }
+    }
+
     return null;
   }
+
+  static String _normalize(String text) {
+    return text
+        .trim()
+        .toLowerCase()
+        .replaceAll('á', 'a')
+        .replaceAll('é', 'e')
+        .replaceAll('í', 'i')
+        .replaceAll('ó', 'o')
+        .replaceAll('ú', 'u')
+        .replaceAll('ü', 'u')
+        .replaceAll('ñ', 'n')
+        .replaceAll(RegExp(r'^(san|santo|santa)\s+'), '')
+        .replaceAll(RegExp(r'[^a-z0-9]'), '');
+  }
+
+  static const Map<String, int> _bookAliases = {
+    'salmo': 19,
+    'salmos': 19,
+    'ps': 19,
+    'psalm': 19,
+    'cantar': 22,
+    'cantares': 22,
+    'ap': 66,
+    'apoc': 66,
+    'apocalipsis': 66,
+    'revelacion': 66,
+    'revelaciones': 66,
+    'act': 44,
+    'actos': 44,
+    'hechos': 44,
+    'qoh': 21,
+    'qohelet': 21,
+    'ec': 21,
+    'dt': 5,
+    'deu': 5,
+    'flp': 50,
+    'php': 50,
+    'stg': 59,
+    'stgo': 59,
+    'jas': 59,
+    'phm': 57,
+    '1th': 52,
+    '2th': 53,
+    '1ti': 54,
+    '2ti': 55,
+    '1p': 60,
+    '2p': 61,
+    '1j': 62,
+    '2j': 63,
+    '3j': 64,
+    'ga': 48,
+  };
 }

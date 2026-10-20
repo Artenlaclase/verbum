@@ -170,11 +170,46 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                               ],
                             ),
                           )
-                        : ListView.separated(
-                            padding: const EdgeInsets.all(16),
-                            itemCount: _results.length,
-                            separatorBuilder: (_, __) => const SizedBox(height: 10),
-                            itemBuilder: (context, index) {
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                                color: isDark ? const Color(0xFF1E2024) : const Color(0xFFF7F5F0),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        const Icon(Icons.auto_stories, size: 16, color: AppTheme.primaryGold),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          '${_results.length} versículo${_results.length == 1 ? "" : "s"} encontrado${_results.length == 1 ? "" : "s"}',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                            color: isDark ? Colors.white70 : Colors.black87,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    Text(
+                                      'Reina-Valera 1909',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontStyle: FontStyle.italic,
+                                        color: isDark ? Colors.white38 : Colors.black45,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Expanded(
+                                child: ListView.separated(
+                                  padding: const EdgeInsets.all(16),
+                                  itemCount: _results.length,
+                                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                                  itemBuilder: (context, index) {
                               final v = _results[index];
                               return Card(
                                 elevation: 0,
@@ -232,6 +267,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                               );
                             },
                           ),
+                        ),
+                      ],
+                    ),
           ),
         ],
       ),
