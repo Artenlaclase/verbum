@@ -1,8 +1,8 @@
 # Informe Técnico de Implementación — Verbum (v1.1)
 
-**Fecha de actualización:** 12 de Octubre de 2026  
+**Fecha de actualización:** 20 de Octubre de 2026  
 **Proyecto:** Verbum — Sagrada Escritura y Calendario Litúrgico  
-**Versión Implementada:** MVP v1.1  
+**Versión Implementada:** MVP v1.1.1  
 **Plataformas:** Flutter Multiplataforma (iOS, Android, Web, Windows Desktop)  
 **Arquitectura:** Offline-First (SQLite local + SharedPreferences Web) + State Management reactivo (Riverpod 3)  
 
@@ -20,7 +20,7 @@ Se ha implementado la totalidad de la base técnica del proyecto **Verbum v1.1**
 
 4. **Motor del Calendario Litúrgico Católico**: Algoritmo de cálculo astronómico/eclesiástico de Computus (**Meeus/Jones/Butcher**) para la determinación exacta de la Pascua y todos los tiempos litúrgicos móviles. Calendario mensual interactivo con indicadores de color litúrgico por día, ciclos dominicales (A/B/C) y feriales (Par/Impar).
 
-5. **Navegación y Búsqueda Bíblica**: Canon de los 66 libros con selector de testamento (AT/NT/Todos), selector de capítulos con rejilla interactiva, menú contextual por versículo (guardar, subrayar, anotar, copiar) y buscador dual (por texto libre y por citas directas como `Jn 3:16`, `Salmo 23`, `1 Cor 13:4-8`).
+5. **Navegación y Búsqueda Bíblica con Soporte Litúrgico Completo**: Canon de los 66 libros con selector de testamento (AT/NT/Todos), selector de capítulos con rejilla interactiva, menú contextual por versículo (guardar, subrayar, anotar, copiar), buscador dual (por texto libre y por citas bíblicas directas) y motor avanzado de citas bíblicas (`BibleReferenceParser`) con soporte para tramos discontinuos, cruce entre capítulos (`Gál 4:22-24, 26-27, 31-5:1`), sufijos litúrgicos (`Isa 58:1-9a`, `Jn 3:7b-15`) y resolución diacrítica de libros.
 
 6. **Compatibilidad Web**: Toda la funcionalidad opera en Web usando `SharedPreferences` como almacenamiento alternativo cuando SQLite no está disponible, y `rootBundle` para cargar los archivos JSON bíblicos desde los assets empaquetados.
 
@@ -119,12 +119,12 @@ lib/
 │   │   ├── app_theme.dart                  # Temas Claro (Pergamino) y Oscuro (Carbón)
 │   │   └── liturgical_colors.dart          # Paleta litúrgica oficial con gradientes
 │   └── utils/
-│       └── bible_reference_parser.dart     # Analizador de citas bíblicas (regex)
+│       └── bible_reference_parser.dart     # Analizador de citas bíblicas complejas y rangos litúrgicos
 ├── features/
 │   ├── bible/
 │   │   ├── data/
 │   │   │   ├── bible_initial_data.dart     # 66 libros + versículos semilla RVR09
-│   │   │   └── bible_repository.dart       # Carga JSON + consultas + búsquedas
+│   │   │   └── bible_repository.dart       # Carga JSON + consultas + extracción multi-capítulo + alias
 │   │   ├── models/
 │   │   │   ├── bible_book.dart             # Modelo BibleBook con toMap/fromMap
 │   │   │   └── bible_verse.dart            # Modelo BibleVerse con referencia calculada
@@ -210,9 +210,11 @@ lib/
 ### 6.5 Búsqueda Bíblica (`SearchScreen`)
 - Campo de búsqueda con autoenfoque
 - Sugerencias rápidas: Jn 3:16, Salmo 23, Mateo 5:3, Romanos 8:28, etc.
-- Búsqueda por cita directa (parser regex) o por palabra clave
-- Resultados con referencia resaltada y texto completo
-- Navegación directa al lector de capítulos desde resultados
+- Búsqueda dual: por texto libre o por cita bíblica directa
+- Motor de citas litúrgicas avanzadas: soporte completo para tramos discontinuos (`Sal 51:3-6, 18-19`), sufijos de letra (`Isa 58:1-9a`, `Jn 3:7b-15`), bloques separados por punto y coma (`Heb 4:14-16; 5:7-9`) y cruces entre capítulos (`Gál 4:22-24, 26-27, 31-5:1`)
+- Cabecera informativa superior con número de versículos encontrados y etiqueta de versión de traducción (Reina-Valera 1909)
+- Resultados con referencia canónica resaltada y texto completo ordenado canónicamente
+- Navegación directa al lector de capítulos (`ChapterReaderScreen`) desde cualquier versículo de los resultados
 
 ### 6.6 Calendario Litúrgico (`CalendarScreen`)
 - Vista mensual con selector de mes (← / →)
@@ -273,11 +275,18 @@ Se desarrollaron pruebas automáticas en `test/`:
    - Verificación de solemnidades fijas (Navidad, Santa María Madre de Dios).
    - Verificación de tiempos penitenciales y móviles (Miércoles de Ceniza en morado, Viernes Santo en rojo).
 
-2. **`test/bible_reference_test.dart`**:
+2. **`test/bible_reference_test.dart` (11 pruebas unitarias)**:
    - Citas simples (`Jn 3:16`).
    - Rangos de versículos (`Juan 3:16-21`).
    - Capítulos completos (`Salmo 23`).
    - Libros con prefijo numeral (`1 Cor 13:4-8`).
+   - Referencia litúrgica compleja con tramos discontinuos y cruce de capítulos (`Gál 4:22-24, 26-27, 31-5:1`).
+   - Sufijos literales de versículo en leccionario (`Isa 58:1-9a`, `Jn 3:7b-15`).
+   - Múltiples rangos y versículos sueltos (`Sal 67:2-3, 5, 6, 8`).
+   - Bloques con punto y coma (`Heb 4:14-16; 5:7-9`).
+   - Notación europea con coma como separador de capítulo (`Lc 1, 26-38`).
+   - Resolución insensible a tildes, abreviaturas y mayúsculas (`Gál`/`Gal`, `Éx`/`Ex`, `1 Cor`/`1cor`, `San Juan`).
+   - Búsqueda y extracción exacta de los 7 versículos canónicos de `Gál 4:22-24, 26-27, 31-5:1` en `BibleRepository`.
 
 3. **`test/widget_test.dart`**:
    - Prueba de humo del árbol de widgets y renderizado de `VerbumApp` con Riverpod.
@@ -299,6 +308,9 @@ Se desarrollaron pruebas automáticas en `test/`:
 ### 9.2 Problemas conocidos resueltos
 - **Textos no cargaban en Web**: Se implementó fallback a `SharedPreferences` y carga de JSON via `rootBundle` para todas las funcionalidades de datos.
 - **Texto ilegible en navegación**: Se verificó y corrigió la carga de versículos al cambiar de capítulo con las flechas de navegación.
+- **Fallo al abrir lecturas diarias compuestas (ej. "No se encontraron versículos para Gál 4:22-24, 26-27, 31-5:1")**:
+  - *Causa*: La expresión regular original solo admitía una estructura rígida `Libro Cap:Inicio-Fin`, por lo que citas con comas intermedias, versículos con letras o saltos de capítulo devolvían `null` y caían en búsqueda textual vacía. Además, `findBookByQuery` no normalizaba tildes ni prefijos como "San ".
+  - *Solución*: Se creó la clase `BibleVerseRange` y se refactorizó `BibleReferenceParser` para procesar listas de rangos y cruces de capítulo. En `BibleRepository`, se agregó `getVersesForReference` para ensamblar los versículos a través de múltiples capítulos sin duplicados, y normalización fonética y diacrítica en `findBookByQuery` con tabla de alias. En `SearchScreen`, se incorporó una cabecera con contador de resultados y acceso directo a los versículos.
 
 ---
 
