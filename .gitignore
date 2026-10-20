@@ -12,6 +12,7 @@
 .swiftpm/
 migrate_working_dir/
 RESUMEN_IMPLEMENTACION.md
+SUGERENCIAS_TEMATICAS_IMPLEMENTACION.md
 # IntelliJ related
 *.iml
 *.ipr

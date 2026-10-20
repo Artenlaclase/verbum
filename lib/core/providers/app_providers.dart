@@ -8,6 +8,8 @@ import '../../features/profile/data/profile_repository.dart';
 import '../../features/profile/models/bookmark.dart';
 import '../../features/profile/models/saved_passage.dart';
 import '../../features/profile/models/user_profile.dart';
+import '../../features/thematic_suggestions/data/thematic_suggestions_repository.dart';
+import '../../features/thematic_suggestions/models/thematic_suggestion.dart';
 
 // Repositorios
 final bibleRepositoryProvider = Provider<BibleRepository>((ref) {
@@ -92,3 +94,16 @@ class ThemeModeNotifier extends Notifier<ThemeMode> {
 
 final themeModeStateProvider =
     NotifierProvider<ThemeModeNotifier, ThemeMode>(ThemeModeNotifier.new);
+
+// Proveedor de sugerencias bíblicas temáticas diarias
+final thematicSuggestionsRepositoryProvider =
+    Provider<ThematicSuggestionsRepository>((ref) {
+  return ThematicSuggestionsRepository.instance;
+});
+
+final dailyThematicSuggestionsProvider =
+    Provider<List<ThematicReadingSuggestion>>((ref) {
+  final repo = ref.watch(thematicSuggestionsRepositoryProvider);
+  return repo.getDailySuggestions();
+});
+

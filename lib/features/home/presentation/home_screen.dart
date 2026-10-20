@@ -12,6 +12,7 @@ import '../../profile/presentation/saved_passages_screen.dart';
 import 'widgets/continue_reading_card.dart';
 import 'widgets/quick_actions_grid.dart';
 import 'widgets/today_liturgical_card.dart';
+import '../../thematic_suggestions/presentation/thematic_suggestions_widget.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -191,7 +192,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
           const SizedBox(height: 22),
 
-          // 3. REJILLA DE ACCESOS RÁPIDOS
+          // 3. 🕊️ SUGERENCIAS BÍBLICAS TEMÁTICAS DIARIAS (Amor, Dinero, Salud, Amistad, Armonía)
+          ThematicSuggestionsWidget(
+            onOpenReading: (reference) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => SearchScreen(initialQuery: reference),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 22),
+
+          // 4. REJILLA DE ACCESOS RÁPIDOS
           QuickActionsGrid(
             onOpenBible: () => setState(() => _currentIndex = 1),
             onOpenContinuous: () {
