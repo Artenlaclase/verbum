@@ -1,38 +1,132 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+  <title>Verbum — Sagrada Escritura y Calendario Litúrgico</title>
+  <meta name="description" content="Verbum: Biblia completa Reina-Valera 1909, Calendario Litúrgico Católico con algoritmo Computus, lectura continua, pasajes guardados y guía bíblica diaria.">
+  <meta name="author" content="Verbum">
+  <meta name="theme-color" content="#C9A227">
+
+  <!-- Open Graph / Redes Sociales -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Verbum — Sagrada Escritura y Calendario Litúrgico">
+  <meta property="og:description" content="Biblia RVR09 completa offline, tiempos y lecturas litúrgicas, modo corrido continuo y sugerencias bíblicas diarias.">
+  <meta property="og:site_name" content="Verbum">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="verbum">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Verbum">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
-
-  <title>verbum</title>
   <link rel="manifest" href="manifest.json">
+
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #0D0F12;
+      color: #E6D5B8;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #loading-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      animation: fadeIn 0.8s ease-out;
+    }
+
+    .emblem {
+      width: 64px;
+      height: 64px;
+      margin-bottom: 20px;
+      position: relative;
+    }
+
+    .cross-v {
+      position: absolute;
+      top: 0;
+      left: 28px;
+      width: 8px;
+      height: 64px;
+      background: linear-gradient(180deg, #E6C25B 0%, #C9A227 100%);
+      border-radius: 4px;
+      box-shadow: 0 0 20px rgba(201, 162, 39, 0.4);
+    }
+
+    .cross-h {
+      position: absolute;
+      top: 18px;
+      left: 10px;
+      width: 44px;
+      height: 8px;
+      background: linear-gradient(90deg, #E6C25B 0%, #C9A227 100%);
+      border-radius: 4px;
+      box-shadow: 0 0 20px rgba(201, 162, 39, 0.4);
+    }
+
+    .app-title {
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: 4px;
+      color: #E6C25B;
+      margin: 0 0 8px 0;
+      text-transform: uppercase;
+    }
+
+    .app-subtitle {
+      font-size: 13px;
+      letter-spacing: 1.5px;
+      color: #8C9BAE;
+      margin: 0 0 24px 0;
+    }
+
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid rgba(201, 162, 39, 0.2);
+      border-top-color: #C9A227;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.96); }
+      to { opacity: 1; transform: scale(1); }
+    }
+  </style>
 </head>
 <body>
+  <div id="loading-container">
+    <div class="emblem">
+      <div class="cross-v"></div>
+      <div class="cross-h"></div>
+    </div>
+    <h1 class="app-title">VERBUM</h1>
+    <p class="app-subtitle">SAGRADA ESCRITURA Y LITURGIA</p>
+    <div class="spinner"></div>
+  </div>
+
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

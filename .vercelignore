@@ -1,0 +1,14 @@
+.dart_tool/
+.git/
+.github/
+.idea/
+.vscode/
+android/
+ios/
+linux/
+macos/
+windows/
+test/
+_flutter/
+*.bat
+*.ps1

@@ -1,0 +1,19 @@
+{
+  "name": "verbum-web",
+  "version": "1.1.1",
+  "private": true,
+  "description": "Verbum — Sagrada Escritura y Calendario Litúrgico",
+  "scripts": {
+    "build": "bash vercel-build.sh",
+    "build:local": "flutter build web --release",
+    "deploy": "vercel --prod"
+  },
+  "keywords": [
+    "flutter",
+    "web",
+    "verbum",
+    "bible",
+    "liturgy"
+  ],
+  "author": "Verbum"
+}

@@ -13,6 +13,8 @@
 migrate_working_dir/
 RESUMEN_IMPLEMENTACION.md
 SUGERENCIAS_TEMATICAS_IMPLEMENTACION.md
+.vercel/
+_flutter/
 # IntelliJ related
 *.iml
 *.ipr
