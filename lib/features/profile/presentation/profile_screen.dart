@@ -120,8 +120,8 @@ class ProfileScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 20),
 
-            // TARJETA DE SINCRONIZACIÓN FIREBASE
-            _buildCloudSyncCard(context, ref),
+            // BOTÓN SIMPLE DE INICIO / CIERRE DE SESIÓN
+            _buildSessionButton(context, ref),
             const SizedBox(height: 24),
 
             // ESTADÍSTICAS EN TIEMPO REAL
@@ -192,9 +192,21 @@ class ProfileScreen extends ConsumerWidget {
                   ListTile(
                     leading: const Icon(Icons.bookmark_added_rounded, color: AppTheme.primaryGold),
                     title: const Text('Mis Pasajes Guardados', style: TextStyle(fontWeight: FontWeight.w600)),
-                    subtitle: const Text('Textos favoritos con etiquetas temáticas'),
+                    subtitle: Text(
+                      isAuthenticated
+                          ? 'Textos favoritos con etiquetas temáticas'
+                          : 'Inicia sesión para guardar tus pasajes favoritos',
+                    ),
                     trailing: const Icon(Icons.chevron_right_rounded),
                     onTap: () {
+                      if (!isAuthenticated) {
+                        _promptSignInForFeature(
+                          context,
+                          ref,
+                          'Para guardar y consultar tus pasajes favoritos necesitas iniciar sesión.',
+                        );
+                        return;
+                      }
                       Navigator.push(
                         context,
                         MaterialPageRoute(builder: (_) => const SavedPassagesScreen()),
@@ -205,9 +217,23 @@ class ProfileScreen extends ConsumerWidget {
                   ListTile(
                     leading: const Icon(Icons.history_rounded, color: LiturgicalColors.verde),
                     title: const Text('Historial de Lectura', style: TextStyle(fontWeight: FontWeight.w600)),
-                    subtitle: const Text('Registro cronológico de tus lecturas'),
+                    subtitle: Text(
+                      isAuthenticated
+                          ? 'Registro cronológico de tus lecturas'
+                          : 'Inicia sesión para registrar tu historial de lectura',
+                    ),
                     trailing: const Icon(Icons.chevron_right_rounded),
-                    onTap: () => _showHistoryModal(context, ref),
+                    onTap: () {
+                      if (!isAuthenticated) {
+                        _promptSignInForFeature(
+                          context,
+                          ref,
+                          'Para llevar un historial de lectura y estadísticas necesitas iniciar sesión.',
+                        );
+                        return;
+                      }
+                      _showHistoryModal(context, ref);
+                    },
                   ),
                 ],
               ),
@@ -285,220 +311,70 @@ class ProfileScreen extends ConsumerWidget {
               const SizedBox(height: 24),
             ],
 
-            // BOTÓN DEDICADO DE CERRAR SESIÓN AL PIE DEL PERFIL
-            if (isAuthenticated) ...[
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.redAccent,
-                    side: BorderSide(color: Colors.redAccent.withValues(alpha: 0.45)),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  icon: const Icon(Icons.logout_rounded, size: 18),
-                  label: const Text(
-                    'Cerrar sesión de mi cuenta',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                  ),
-                  onPressed: () => _confirmSignOut(context, ref),
-                ),
-              ),
-              const SizedBox(height: 16),
-            ],
           ],
         ),
       ),
     );
   }
 
-  Widget _buildCloudSyncCard(BuildContext context, WidgetRef ref) {
+  Widget _buildSessionButton(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authStateProvider);
     final user = authState.asData?.value;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     if (user != null) {
-      // Usuario Autenticado
-      return Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF161A20) : Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: LiturgicalColors.verde.withValues(alpha: 0.35),
-            width: 1.2,
+      return SizedBox(
+        width: double.infinity,
+        child: OutlinedButton.icon(
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Colors.redAccent,
+            side: BorderSide(color: Colors.redAccent.withValues(alpha: 0.45)),
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
           ),
-          boxShadow: [
-            BoxShadow(
-              color: LiturgicalColors.verde.withValues(alpha: 0.08),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: LiturgicalColors.verde.withValues(alpha: 0.15),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.cloud_done_rounded, color: LiturgicalColors.verde, size: 22),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Sincronización en la Nube Activa',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        user.displayName ?? user.email ?? 'Usuario de Verbum',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.7),
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  tooltip: 'Cerrar sesión',
-                  icon: const Icon(Icons.logout_rounded, size: 20, color: Colors.redAccent),
-                  onPressed: () => _confirmSignOut(context, ref),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                TextButton.icon(
-                  style: TextButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
-                    foregroundColor: Colors.redAccent,
-                  ),
-                  icon: const Icon(Icons.logout_rounded, size: 15),
-                  label: const Text(
-                    'Cerrar sesión',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                  ),
-                  onPressed: () => _confirmSignOut(context, ref),
-                ),
-                OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
-                    side: BorderSide(color: AppTheme.primaryGold.withValues(alpha: 0.5)),
-                  ),
-                  icon: const Icon(Icons.sync_rounded, size: 16, color: AppTheme.primaryGold),
-                  label: const Text('Sincronizar ahora', style: TextStyle(color: AppTheme.primaryGold, fontSize: 12)),
-                  onPressed: () async {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Sincronizando con Firebase Firestore...'), duration: Duration(seconds: 1)),
-                    );
-                    await FirestoreSyncService.instance.migrateLocalToFirestore();
-                    ref.invalidate(userProfileProvider);
-                    ref.invalidate(bookmarkProvider);
-                    ref.invalidate(savedPassagesProvider);
-                    ref.invalidate(readingStatsProvider);
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('¡Datos sincronizados exitosamente!')),
-                      );
-                    }
-                  },
-                ),
-              ],
-            ),
-          ],
+          icon: const Icon(Icons.logout_rounded, size: 18),
+          label: const Text(
+            'Cerrar Sesión',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+          ),
+          onPressed: () => _confirmSignOut(context, ref),
         ),
       );
     }
 
-    // Usuario Invitado / Modo Local
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF161A20) : Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: AppTheme.primaryGold.withValues(alpha: 0.35),
-          width: 1.2,
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppTheme.primaryGold,
+          foregroundColor: Colors.black,
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryGold.withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.cloud_queue_rounded, color: AppTheme.primaryGold, size: 22),
-              ),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Modo Local (Sin sincronizar)',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                    ),
-                    SizedBox(height: 2),
-                    Text(
-                      'Respalda tus pasajes, notas y lecturas en la nube.',
-                      style: TextStyle(fontSize: 12, color: Colors.grey),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryGold,
-                foregroundColor: Colors.black,
-                elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              icon: const Icon(Icons.login_rounded, size: 18),
-              label: const Text('Iniciar Sesión / Sincronizar Cuenta', style: TextStyle(fontWeight: FontWeight.bold)),
-              onPressed: () async {
-                final success = await Navigator.push<bool>(
-                  context,
-                  MaterialPageRoute(builder: (_) => const AuthScreen()),
-                );
-                if (success == true && context.mounted) {
-                  ref.invalidate(userProfileProvider);
-                  ref.invalidate(bookmarkProvider);
-                  ref.invalidate(savedPassagesProvider);
-                  ref.invalidate(readingStatsProvider);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('¡Sesión iniciada y datos sincronizados!')),
-                  );
-                }
-              },
-            ),
-          ),
-        ],
+        icon: const Icon(Icons.login_rounded, size: 18),
+        label: const Text(
+          'Iniciar Sesión',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+        ),
+        onPressed: () async {
+          final success = await Navigator.push<bool>(
+            context,
+            MaterialPageRoute(builder: (_) => const AuthScreen()),
+          );
+          if (success == true && context.mounted) {
+            ref.invalidate(userProfileProvider);
+            ref.invalidate(bookmarkProvider);
+            ref.invalidate(savedPassagesProvider);
+            ref.invalidate(readingStatsProvider);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('¡Sesión iniciada correctamente!')),
+            );
+          }
+        },
       ),
     );
   }
@@ -756,13 +632,69 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
+  Future<void> _promptSignInForFeature(
+    BuildContext context,
+    WidgetRef ref,
+    String message,
+  ) async {
+    final goLogin = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: const Row(
+          children: [
+            Icon(Icons.lock_person_rounded, color: AppTheme.primaryGold),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Inicia sesión en Verbum',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: Text(message, style: const TextStyle(fontSize: 13.5, height: 1.4)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Ahora no'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryGold,
+              foregroundColor: Colors.black,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text(
+              'Iniciar Sesión / Crear Cuenta',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (goLogin == true && context.mounted) {
+      final success = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(builder: (_) => const AuthScreen()),
+      );
+      if (success == true && context.mounted) {
+        ref.invalidate(userProfileProvider);
+        ref.invalidate(bookmarkProvider);
+        ref.invalidate(savedPassagesProvider);
+        ref.invalidate(readingStatsProvider);
+      }
+    }
+  }
+
   Future<void> _confirmSignOut(BuildContext context, WidgetRef ref) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Cerrar Sesión'),
         content: const Text(
-          '¿Deseas cerrar tu sesión? Tus datos locales se conservarán en este dispositivo.',
+          '¿Deseas cerrar tu sesión? La aplicación volverá a cero en este dispositivo, pero tus datos seguirán resguardados en tu cuenta en la nube.',
         ),
         actions: [
           TextButton(
@@ -778,6 +710,7 @@ class ProfileScreen extends ConsumerWidget {
       ),
     );
     if (confirm == true) {
+      await ref.read(profileRepositoryProvider).clearLocalUserData();
       await AuthService.instance.signOut();
       ref.invalidate(userProfileProvider);
       ref.invalidate(bookmarkProvider);
@@ -785,7 +718,7 @@ class ProfileScreen extends ConsumerWidget {
       ref.invalidate(readingStatsProvider);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Sesión cerrada correctamente')),
+          const SnackBar(content: Text('Sesión cerrada. La aplicación ha vuelto a cero.')),
         );
       }
     }
@@ -1023,19 +956,33 @@ class ProfileScreen extends ConsumerWidget {
     WidgetRef ref,
     UserProfile? profile,
     bool currentlyCustodio,
-  ) {
+  ) async {
+    final user = AuthService.instance.currentUser;
+
+    // Si el usuario tiene sesión iniciada, registrar de inmediato su correo en Firestore
+    if (user != null) {
+      await FirestoreSyncService.instance.registerCustodioInterest(
+        emailOverride: user.email,
+        nombreOverride: profile?.nombre ?? user.displayName,
+      );
+    }
+
+    if (!context.mounted) return;
+
+    final guestEmailController = TextEditingController(text: user?.email ?? '');
+
     showDialog(
       context: context,
       builder: (ctx) {
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Row(
+          title: const Row(
             children: [
-              const Icon(Icons.workspace_premium_rounded, color: AppTheme.primaryGold),
-              const SizedBox(width: 8),
-              const Expanded(
+              Icon(Icons.workspace_premium_rounded, color: AppTheme.primaryGold),
+              SizedBox(width: 8),
+              Expanded(
                 child: Text(
-                  'Alianza «Custodio de la Palabra»',
+                  'Custodio de la Palabra',
                   style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
                 ),
               ),
@@ -1045,59 +992,83 @@ class ProfileScreen extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'La Palabra de Dios y el Calendario Litúrgico siempre serán libres en «Camino Abierto».',
-                style: TextStyle(fontSize: 13, height: 1.4),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryGold.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppTheme.primaryGold.withValues(alpha: 0.4)),
+                ),
+                child: const Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.notifications_active_rounded, color: AppTheme.primaryGold, size: 20),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Esta función aún no está habilitada, pero te avisaremos en cuanto se pueda.',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, height: 1.35),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 12),
-              const Text(
-                'Al consagrarte como Custodio de la Palabra con tu ofrenda de sostenimiento, ayudas a mantener viva esta obra y recibes:',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, height: 1.4),
-              ),
-              const SizedBox(height: 10),
-              const Text('• Pasajes guardados ilimitados (más allá de los 5 de Camino Abierto).', style: TextStyle(fontSize: 12.5)),
-              const SizedBox(height: 4),
-              const Text('• Notas personales y subrayados sin límite.', style: TextStyle(fontSize: 12.5)),
-              const SizedBox(height: 4),
-              const Text('• Acceso a los Ajustes del Scriptorium: Temas Claro Pergamino / Oscuro Carbón y Respaldo JSON.', style: TextStyle(fontSize: 12.5)),
+              const SizedBox(height: 14),
+              if (user != null && user.email != null) ...[
+                Text(
+                  'Hemos registrado el correo de tu sesión (${user.email}) en nuestra lista prioritaria para contactarte apenas esté disponible.',
+                  style: const TextStyle(fontSize: 13, height: 1.4),
+                ),
+              ] else ...[
+                const Text(
+                  'Déjanos tu correo electrónico (o inicia sesión) para avisarte apenas esté disponible:',
+                  style: TextStyle(fontSize: 13, height: 1.4),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: guestEmailController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(
+                    labelText: 'Tu correo electrónico',
+                    hintText: 'ejemplo@correo.com',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                ),
+              ],
             ],
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cerrar'),
-            ),
+            if (user == null)
+              TextButton(
+                onPressed: () async {
+                  final email = guestEmailController.text.trim();
+                  if (email.isNotEmpty && email.contains('@')) {
+                    await FirestoreSyncService.instance.registerCustodioInterest(
+                      emailOverride: email,
+                      nombreOverride: profile?.nombre,
+                    );
+                  }
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('¡Gracias! Te avisaremos en cuanto esté habilitada.'),
+                      ),
+                    );
+                  }
+                },
+                child: const Text('Guardar mi correo'),
+              ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: currentlyCustodio ? Colors.grey.shade700 : AppTheme.primaryGold,
-                foregroundColor: currentlyCustodio ? Colors.white : Colors.black,
+                backgroundColor: AppTheme.primaryGold,
+                foregroundColor: Colors.black,
               ),
-              onPressed: () async {
-                if (profile != null) {
-                  final newPrefs = Map<String, dynamic>.from(profile.preferencias);
-                  newPrefs['esCustodio'] = !currentlyCustodio;
-                  final updated = profile.copyWith(preferencias: newPrefs);
-                  await ref.read(profileRepositoryProvider).updateProfile(updated);
-                  ref.invalidate(userProfileProvider);
-                }
-                if (ctx.mounted) Navigator.pop(ctx);
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        !currentlyCustodio
-                            ? '¡Bienvenido como Custodio de la Palabra! Ajustes del Scriptorium desbloqueados.'
-                            : 'Has vuelto a la modalidad Camino Abierto.',
-                      ),
-                    ),
-                  );
-                }
-              },
-              child: Text(
-                currentlyCustodio
-                    ? 'Volver a Camino Abierto (Prueba)'
-                    : 'Activar Custodio de la Palabra',
-                style: const TextStyle(fontWeight: FontWeight.bold),
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text(
+                'Entendido',
+                style: TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
           ],

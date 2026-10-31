@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/app_providers.dart';
+import '../../../core/providers/auth_providers.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../auth/presentation/auth_screen.dart';
 import '../../bible/presentation/search_screen.dart';
 
 
@@ -11,10 +13,68 @@ class SavedPassagesScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isAuthenticated = ref.watch(authStateProvider).asData?.value != null;
     final passagesAsync = ref.watch(savedPassagesProvider);
     final selectedTag = ref.watch(selectedTagFilterProvider);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+
+    if (!isAuthenticated) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Mis Pasajes Guardados'),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(28.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.lock_person_rounded,
+                  size: 64,
+                  color: AppTheme.primaryGold.withValues(alpha: 0.7),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Inicia sesión para guardar tus pasajes',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Para guardar pasajes favoritos, añadir notas personales y llevar un historial de lectura, inicia sesión en tu cuenta Verbum.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 13.5, color: Colors.grey, height: 1.4),
+                ),
+                const SizedBox(height: 22),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryGold,
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  icon: const Icon(Icons.login_rounded, size: 18),
+                  label: const Text(
+                    'Iniciar Sesión / Crear Cuenta',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const AuthScreen()),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
 
     final tags = ['Todos', 'Fe', 'Oración', 'Consuelo', 'Esperanza', 'Gratitud', 'Amor', 'Paz', 'Sabiduría'];
 

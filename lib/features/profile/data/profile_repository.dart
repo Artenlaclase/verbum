@@ -22,45 +22,42 @@ class ProfileRepository {
   bool get _isAuthenticated => AuthService.instance.isSignedIn;
   FirestoreSyncService get _firestore => FirestoreSyncService.instance;
 
+  // ==================== LIMPIEZA AL CERRAR SESIÓN (VOLVER A CERO) ====================
+
+  /// Limpia todos los datos locales para que la aplicación vuelva a cero al cerrar sesión.
+  Future<void> clearLocalUserData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('verbum_profile');
+      await prefs.remove('verbum_bookmark');
+      await prefs.remove('verbum_saved_passages');
+      await prefs.remove('verbum_history');
+      await prefs.remove('verbum_highlights');
+      await prefs.remove('verbum_notes');
+
+      final db = await _dbHelper.database;
+      if (db != null) {
+        await db.delete('perfil');
+        await db.delete('marcador_lectura');
+        await db.delete('pasajes_guardados');
+        await db.delete('historial_lectura');
+        await db.delete('subrayados');
+        await db.delete('notas');
+      }
+    } catch (e) {
+      debugPrint('ProfileRepository clearLocalUserData warning: $e');
+    }
+  }
+
   // ==================== PERFIL DE USUARIO ====================
 
   Future<UserProfile> getProfile() async {
-    // 1. Si hay usuario autenticado, intentar Firestore primero
-    if (_isAuthenticated) {
-      try {
-        final cloudProfile = await _firestore.getProfile();
-        if (cloudProfile != null) return cloudProfile;
-      } catch (e) {
-        debugPrint('ProfileRepository getProfile Firestore fallback: $e');
-      }
-    }
-
-    // 2. Si hay base de datos SQLite disponible
-    final db = await _dbHelper.database;
-    if (db != null) {
-      try {
-        final maps = await db.query('perfil', where: 'id = ?', whereArgs: [1]);
-        if (maps.isNotEmpty) {
-          return UserProfile.fromMap(maps.first);
-        }
-      } catch (e) {
-        debugPrint('ProfileRepository getProfile SQLite fallback: $e');
-      }
-    }
-
-    // 3. Si estamos en Web o respaldo SharedPreferences
-    final prefs = await SharedPreferences.getInstance();
-    final profileJson = prefs.getString('verbum_profile');
-    if (profileJson != null) {
-      try {
-        return UserProfile.fromMap(jsonDecode(profileJson) as Map<String, dynamic>);
-      } catch (_) {}
-    }
-
     final defaultProfile = UserProfile(
       id: 1,
       nombre: _isAuthenticated
-          ? (AuthService.instance.currentUser?.displayName ?? 'Lector Verbum')
+          ? (AuthService.instance.currentUser?.displayName ??
+              AuthService.instance.currentUser?.email?.split('@').first ??
+              'Lector Verbum')
           : 'Lector Verbum',
       avatar: '✝️',
       fechaCreacion: DateTime.now(),
@@ -71,43 +68,28 @@ class ProfileRepository {
       },
     );
 
-    // Guardar en todas las capas disponibles
-    if (db != null) {
-      try {
-        await db.insert('perfil', defaultProfile.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
-      } catch (_) {}
+    // Si NO hay sesión iniciada, la app permanece en estado cero (Invitado)
+    if (!_isAuthenticated) {
+      return defaultProfile;
     }
+
+    // 1. Si hay usuario autenticado, consultar Firestore primero
+    try {
+      final cloudProfile = await _firestore.getProfile();
+      if (cloudProfile != null) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('verbum_profile', jsonEncode(cloudProfile.toMap()));
+        return cloudProfile;
+      }
+    } catch (e) {
+      debugPrint('ProfileRepository getProfile Firestore fallback: $e');
+    }
+
+    // 2. Si es un usuario autenticado nuevo en Firestore, inicializar su perfil limpio y marcador en Génesis 1:1
+    final prefs = await SharedPreferences.getInstance();
     await prefs.setString('verbum_profile', jsonEncode(defaultProfile.toMap()));
-
-    if (_isAuthenticated) {
-      unawaited(_firestore.saveProfile(defaultProfile));
-    }
-
-    // Inicializar marcador desde el principio (Génesis 1:1) y pasaje de bienvenida
-    await saveBookmark(Bookmark(
-      perfilId: 1,
-      libroId: 1, // Génesis
-      capitulo: 1,
-      versiculo: 1,
-      modo: 'continuo',
-      fechaActualizacion: DateTime.now(),
-    ));
-
-    await savePassage(SavedPassage(
-      perfilId: 1,
-      titulo: 'Amor de Dios',
-      referenciaInicio: 'Jn 3:16',
-      referenciaFin: 'Jn 3:17',
-      libroId: 43,
-      capituloInicio: 3,
-      versiculoInicio: 16,
-      capituloFin: 3,
-      versiculoFin: 17,
-      textoSnapshot: 'Porque de tal manera amó Dios al mundo, que ha dado á su Hijo unigénito, para que todo aquel que en él cree, no se pierda, mas tenga vida eterna.',
-      etiqueta: 'Fe',
-      color: '#C9A227',
-      fechaGuardado: DateTime.now(),
-    ));
+    unawaited(_firestore.saveProfile(defaultProfile));
+    unawaited(_firestore.saveBookmark(_defaultZeroBookmark()));
 
     return defaultProfile;
   }
@@ -153,53 +135,27 @@ class ProfileRepository {
   }
 
   Future<Bookmark?> getBookmark() async {
+    // Si no ha iniciado sesión, el Modo Corrido empieza siempre en cero (Génesis 1:1)
+    if (!_isAuthenticated) {
+      return _defaultZeroBookmark();
+    }
+
     // 1. Firestore si autenticado
-    if (_isAuthenticated) {
-      try {
-        final cloudBookmark = await _firestore.getBookmark();
-        if (cloudBookmark != null) {
-          if (_isLegacySeedBookmark(cloudBookmark)) {
-            final zero = _defaultZeroBookmark();
-            unawaited(saveBookmark(zero));
-            return zero;
-          }
-          return cloudBookmark;
+    try {
+      final cloudBookmark = await _firestore.getBookmark();
+      if (cloudBookmark != null) {
+        if (_isLegacySeedBookmark(cloudBookmark)) {
+          final zero = _defaultZeroBookmark();
+          unawaited(saveBookmark(zero));
+          return zero;
         }
-      } catch (e) {
-        debugPrint('ProfileRepository getBookmark Firestore fallback: $e');
+        return cloudBookmark;
       }
+    } catch (e) {
+      debugPrint('ProfileRepository getBookmark Firestore fallback: $e');
     }
 
-    // 2. SQLite
-    final db = await _dbHelper.database;
-    if (db != null) {
-      try {
-        final maps = await db.query('marcador_lectura', where: 'perfil_id = ?', whereArgs: [1]);
-        if (maps.isNotEmpty) {
-          final map = maps.first;
-          final libroId = map['libro_id'] as int;
-          final book = BibleInitialData.books.firstWhere(
-            (b) => b.id == libroId,
-            orElse: () => BibleInitialData.books.first,
-          );
-          final bm = Bookmark.fromMap(
-            map,
-            libroNombre: book.nombre,
-            libroAbreviatura: book.abreviatura,
-          );
-          if (_isLegacySeedBookmark(bm)) {
-            final zero = _defaultZeroBookmark();
-            unawaited(saveBookmark(zero));
-            return zero;
-          }
-          return bm;
-        }
-      } catch (e) {
-        debugPrint('ProfileRepository getBookmark SQLite fallback: $e');
-      }
-    }
-
-    // 3. SharedPreferences
+    // 2. Respaldo local (solo para la sesión activa)
     final prefs = await SharedPreferences.getInstance();
     final bmJson = prefs.getString('verbum_bookmark');
     if (bmJson != null) {
@@ -228,6 +184,8 @@ class ProfileRepository {
   }
 
   Future<void> saveBookmark(Bookmark bookmark) async {
+    if (!_isAuthenticated) return;
+
     final db = await _dbHelper.database;
     if (db != null) {
       try {
@@ -241,56 +199,29 @@ class ProfileRepository {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('verbum_bookmark', jsonEncode(bookmark.toMap()));
 
-    if (_isAuthenticated) {
-      unawaited(_firestore.saveBookmark(bookmark));
-    }
+    unawaited(_firestore.saveBookmark(bookmark));
   }
 
-  // ==================== PASAJES GUARDADOS ====================
+  // ==================== PASAJES GUARDADOS (REQUIERE SESIÓN) ====================
 
   Future<List<SavedPassage>> getSavedPassages({String? etiqueta}) async {
-    // 1. Firestore si autenticado
-    if (_isAuthenticated) {
-      try {
-        final cloudPassages = await _firestore.getSavedPassages(etiqueta: etiqueta);
-        if (cloudPassages.isNotEmpty) return cloudPassages;
-      } catch (e) {
-        debugPrint('ProfileRepository getSavedPassages Firestore fallback: $e');
-      }
+    // Sin sesión activa no se muestran ni guardan pasajes
+    if (!_isAuthenticated) return [];
+
+    // 1. Firestore
+    try {
+      final cloudPassages = await _firestore.getSavedPassages(etiqueta: etiqueta);
+      if (cloudPassages.isNotEmpty) return cloudPassages;
+    } catch (e) {
+      debugPrint('ProfileRepository getSavedPassages Firestore fallback: $e');
     }
 
-    // 2. SQLite
-    final db = await _dbHelper.database;
-    if (db != null) {
-      try {
-        List<Map<String, dynamic>> maps;
-        if (etiqueta != null && etiqueta != 'Todos') {
-          maps = await db.query(
-            'pasajes_guardados',
-            where: 'perfil_id = ? AND etiqueta = ?',
-            whereArgs: [1, etiqueta],
-            orderBy: 'fecha_guardado DESC',
-          );
-        } else {
-          maps = await db.query(
-            'pasajes_guardados',
-            where: 'perfil_id = ?',
-            whereArgs: [1],
-            orderBy: 'fecha_guardado DESC',
-          );
-        }
-        if (maps.isNotEmpty) {
-          return maps.map((m) => SavedPassage.fromMap(m)).toList();
-        }
-      } catch (e) {
-        debugPrint('ProfileRepository getSavedPassages SQLite fallback: $e');
-      }
-    }
-
-    // 3. SharedPreferences
+    // 2. Respaldo local de la sesión activa
     final prefs = await SharedPreferences.getInstance();
     final listJson = prefs.getStringList('verbum_saved_passages') ?? [];
-    final passages = listJson.map((str) => SavedPassage.fromMap(jsonDecode(str) as Map<String, dynamic>)).toList();
+    final passages = listJson
+        .map((str) => SavedPassage.fromMap(jsonDecode(str) as Map<String, dynamic>))
+        .toList();
 
     if (etiqueta != null && etiqueta != 'Todos') {
       return passages.where((p) => p.etiqueta == etiqueta).toList();
@@ -299,6 +230,8 @@ class ProfileRepository {
   }
 
   Future<int> savePassage(SavedPassage passage) async {
+    if (!_isAuthenticated) return -1;
+
     final db = await _dbHelper.database;
     int id = DateTime.now().millisecondsSinceEpoch;
     if (db != null) {
@@ -316,13 +249,13 @@ class ProfileRepository {
     listJson.insert(0, jsonEncode(passage.toMap()));
     await prefs.setStringList('verbum_saved_passages', listJson);
 
-    if (_isAuthenticated) {
-      unawaited(_firestore.savePassage(passage));
-    }
+    unawaited(_firestore.savePassage(passage));
     return id;
   }
 
   Future<void> deleteSavedPassage(int id) async {
+    if (!_isAuthenticated) return;
+
     final db = await _dbHelper.database;
     if (db != null) {
       try {
@@ -343,7 +276,7 @@ class ProfileRepository {
     await prefs.setStringList('verbum_saved_passages', listJson);
   }
 
-  // ==================== HISTORIAL Y ESTADÍSTICAS ====================
+  // ==================== HISTORIAL Y ESTADÍSTICAS (REQUIERE SESIÓN) ====================
 
   Future<void> logReading({
     required int libroId,
@@ -351,6 +284,8 @@ class ProfileRepository {
     int? versiculoInicio,
     int? versiculoFin,
   }) async {
+    if (!_isAuthenticated) return;
+
     final db = await _dbHelper.database;
     final logMap = {
       'perfil_id': 1,
@@ -373,49 +308,21 @@ class ProfileRepository {
     if (listJson.length > 50) listJson.removeLast();
     await prefs.setStringList('verbum_history', listJson);
 
-    if (_isAuthenticated) {
-      unawaited(_firestore.logReading(logMap));
-    }
+    unawaited(_firestore.logReading(logMap));
   }
 
   Future<List<ReadingHistory>> getReadingHistory({int limit = 30}) async {
-    // 1. Firestore si autenticado
-    if (_isAuthenticated) {
-      try {
-        final cloudHistory = await _firestore.getReadingHistory(limit: limit);
-        if (cloudHistory.isNotEmpty) return cloudHistory;
-      } catch (e) {
-        debugPrint('ProfileRepository getReadingHistory Firestore fallback: $e');
-      }
+    if (!_isAuthenticated) return [];
+
+    // 1. Firestore
+    try {
+      final cloudHistory = await _firestore.getReadingHistory(limit: limit);
+      if (cloudHistory.isNotEmpty) return cloudHistory;
+    } catch (e) {
+      debugPrint('ProfileRepository getReadingHistory Firestore fallback: $e');
     }
 
-    // 2. SQLite
-    final db = await _dbHelper.database;
-    if (db != null) {
-      try {
-        final maps = await db.query(
-          'historial_lectura',
-          where: 'perfil_id = ?',
-          whereArgs: [1],
-          orderBy: 'fecha DESC',
-          limit: limit,
-        );
-        if (maps.isNotEmpty) {
-          return maps.map((m) {
-            final libroId = m['libro_id'] as int;
-            final book = BibleInitialData.books.firstWhere(
-              (b) => b.id == libroId,
-              orElse: () => BibleInitialData.books.first,
-            );
-            return ReadingHistory.fromMap(m, libroNombre: book.nombre);
-          }).toList();
-        }
-      } catch (e) {
-        debugPrint('ProfileRepository getReadingHistory SQLite fallback: $e');
-      }
-    }
-
-    // 3. SharedPreferences
+    // 2. Respaldo local de la sesión activa
     final prefs = await SharedPreferences.getInstance();
     final listJson = prefs.getStringList('verbum_history') ?? [];
     return listJson.take(limit).map((str) {
@@ -430,6 +337,15 @@ class ProfileRepository {
   }
 
   Future<Map<String, dynamic>> getReadingStats() async {
+    if (!_isAuthenticated) {
+      return {
+        'rachaDias': 0,
+        'capitulosLeidos': 0,
+        'pasajesGuardados': 0,
+        'anotaciones': 0,
+      };
+    }
+
     final passages = await getSavedPassages();
     final history = await getReadingHistory();
 
@@ -441,18 +357,22 @@ class ProfileRepository {
     final prefs = await SharedPreferences.getInstance();
     final notes = prefs.getStringList('verbum_notes') ?? [];
     final highlights = prefs.getStringList('verbum_highlights') ?? [];
+    final localAnnotations = notes.length + highlights.length;
+    final cloudAnnotations = await _firestore.getAnnotationsCount();
 
     return {
-      'rachaDias': history.isNotEmpty ? 1 : 1,
-      'capitulosLeidos': uniqueChapters.isNotEmpty ? uniqueChapters.length : 1,
+      'rachaDias': history.isNotEmpty ? 1 : 0,
+      'capitulosLeidos': uniqueChapters.length,
       'pasajesGuardados': passages.length,
-      'anotaciones': notes.length + highlights.length,
+      'anotaciones': cloudAnnotations > localAnnotations ? cloudAnnotations : localAnnotations,
     };
   }
 
-  // ==================== SUBRAYADOS Y NOTAS ====================
+  // ==================== SUBRAYADOS Y NOTAS (REQUIERE SESIÓN) ====================
 
   Future<void> addHighlight(int versiculoId, String color) async {
+    if (!_isAuthenticated) return;
+
     final hlMap = {
       'perfil_id': 1,
       'versiculo_id': versiculoId,
@@ -472,12 +392,12 @@ class ProfileRepository {
     list.add(jsonEncode(hlMap));
     await prefs.setStringList('verbum_highlights', list);
 
-    if (_isAuthenticated) {
-      unawaited(_firestore.addHighlight(hlMap));
-    }
+    unawaited(_firestore.addHighlight(hlMap));
   }
 
   Future<List<UserHighlight>> getHighlightsForChapter(int libroId, int capitulo) async {
+    if (!_isAuthenticated) return [];
+
     final db = await _dbHelper.database;
     if (db != null) {
       try {
@@ -497,6 +417,8 @@ class ProfileRepository {
   }
 
   Future<void> addNote(int versiculoId, String contenido) async {
+    if (!_isAuthenticated) return;
+
     final noteMap = {
       'perfil_id': 1,
       'versiculo_id': versiculoId,
@@ -517,12 +439,12 @@ class ProfileRepository {
     list.add(jsonEncode(noteMap));
     await prefs.setStringList('verbum_notes', list);
 
-    if (_isAuthenticated) {
-      unawaited(_firestore.addNote(noteMap));
-    }
+    unawaited(_firestore.addNote(noteMap));
   }
 
   Future<List<UserNote>> getAllNotes() async {
+    if (!_isAuthenticated) return [];
+
     final db = await _dbHelper.database;
     if (db != null) {
       try {

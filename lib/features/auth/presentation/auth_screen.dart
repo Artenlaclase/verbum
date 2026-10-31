@@ -115,6 +115,23 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
           }
         }
       }
+      // Si el correo aún no ha sido verificado (ej. cuenta recién creada o correo no confirmado),
+      // exigir confirmación por enlace dentro del tiempo límite; si no se confirma, cerrar sesión.
+      if (!AuthService.instance.isEmailVerified) {
+        if (mounted) setState(() => _isLoading = false);
+        final verified = await _showEmailVerificationCountdownDialog(email);
+        if (!verified) {
+          await AuthService.instance.cancelUnverifiedSession();
+          if (mounted) {
+            setState(() {
+              _errorMessage =
+                  'No se confirmó el correo "$email" a tiempo. Se ha cerrado la sesión; por favor ingrese un correo válido y real.';
+            });
+          }
+          return;
+        }
+      }
+
       // Migrar datos locales en segundo plano sin bloquear la navegación
       unawaited(FirestoreSyncService.instance.migrateLocalToFirestore());
       if (mounted) Navigator.of(context).pop(true);
@@ -296,11 +313,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                                   icon: Icons.email_outlined,
                                   isDark: isDark,
                                   keyboardType: TextInputType.emailAddress,
-                                  validator: (v) {
-                                    if (v == null || v.trim().isEmpty) return 'Ingresa tu correo';
-                                    if (!v.contains('@')) return 'Correo no válido';
-                                    return null;
-                                  },
+                                  validator: AuthService.validateEmailAddress,
                                 ),
                                 const SizedBox(height: 14),
 
@@ -632,5 +645,192 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
     );
+  }
+
+  /// Muestra un diálogo con cuenta regresiva para que el usuario confirme su correo real.
+  /// Si el tiempo se agota o el usuario cancela sin confirmar, retorna `false` y cierra la sesión.
+  Future<bool> _showEmailVerificationCountdownDialog(String email) async {
+    const int totalSeconds = 120; // 2 minutos para confirmar el correo
+    int remainingSeconds = totalSeconds;
+    bool isChecking = false;
+    Timer? countdownTimer;
+    Timer? pollTimer;
+
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogCtx) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            countdownTimer ??= Timer.periodic(const Duration(seconds: 1), (t) {
+              if (!ctx.mounted) {
+                t.cancel();
+                return;
+              }
+              if (remainingSeconds <= 1) {
+                t.cancel();
+                pollTimer?.cancel();
+                Navigator.of(dialogCtx).pop(false);
+              } else {
+                setDialogState(() => remainingSeconds--);
+              }
+            });
+
+            pollTimer ??= Timer.periodic(const Duration(seconds: 4), (t) async {
+              if (!ctx.mounted) {
+                t.cancel();
+                return;
+              }
+              final verified = await AuthService.instance.checkEmailVerified();
+              if (verified && ctx.mounted) {
+                t.cancel();
+                countdownTimer?.cancel();
+                Navigator.of(dialogCtx).pop(true);
+              }
+            });
+
+            final minutes = (remainingSeconds ~/ 60).toString().padLeft(2, '0');
+            final seconds = (remainingSeconds % 60).toString().padLeft(2, '0');
+
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              title: Row(
+                children: [
+                  const Icon(Icons.mark_email_unread_rounded, color: AppTheme.primaryGold),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text(
+                      'Confirma tu correo electrónico',
+                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Hemos enviado un enlace de verificación a:',
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                  const SizedBox(height: 6),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryGold.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      email,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13.5,
+                        color: AppTheme.primaryGold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Abre tu bandeja de entrada y haz clic en el enlace para demostrar que el correo existe. Si no se confirma antes de que termine el tiempo, la sesión se cerrará automáticamente.',
+                    style: TextStyle(fontSize: 12.5, height: 1.4),
+                  ),
+                  const SizedBox(height: 16),
+                  Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.redAccent.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.redAccent.withValues(alpha: 0.35)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.timer_outlined, size: 18, color: Colors.redAccent),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Tiempo restante: $minutes:$seconds',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13.5,
+                              color: Colors.redAccent,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    countdownTimer?.cancel();
+                    pollTimer?.cancel();
+                    Navigator.of(dialogCtx).pop(false);
+                  },
+                  child: const Text(
+                    'Cancelar / Corregir correo',
+                    style: TextStyle(color: Colors.redAccent, fontSize: 12.5),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    try {
+                      await AuthService.instance.resendVerificationEmail();
+                      if (ctx.mounted) {
+                        ScaffoldMessenger.of(ctx).showSnackBar(
+                          const SnackBar(content: Text('Enlace de verificación reenviado')),
+                        );
+                      }
+                    } catch (_) {}
+                  },
+                  child: const Text('Reenviar correo', style: TextStyle(fontSize: 12.5)),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryGold,
+                    foregroundColor: Colors.black,
+                  ),
+                  onPressed: isChecking
+                      ? null
+                      : () async {
+                          setDialogState(() => isChecking = true);
+                          final verified = await AuthService.instance.checkEmailVerified();
+                          if (!ctx.mounted) return;
+                          setDialogState(() => isChecking = false);
+                          if (verified) {
+                            countdownTimer?.cancel();
+                            pollTimer?.cancel();
+                            Navigator.of(dialogCtx).pop(true);
+                          } else {
+                            ScaffoldMessenger.of(ctx).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Aún no detectamos la confirmación. Haz clic en el enlace enviado a tu correo.',
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                  child: Text(
+                    isChecking ? 'Verificando...' : 'Ya confirmé mi correo',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    countdownTimer?.cancel();
+    pollTimer?.cancel();
+    return result == true;
   }
 }

@@ -14,10 +14,32 @@ class AuthService {
   // ─── Estado actual ───────────────────────────────────────────
   User? get currentUser => _auth.currentUser;
   bool get isSignedIn => _auth.currentUser != null;
+  bool get isEmailVerified => _auth.currentUser?.emailVerified ?? false;
   String? get uid => _auth.currentUser?.uid;
 
   /// Stream reactivo del estado de autenticación.
   Stream<User?> get authStateChanges => _auth.authStateChanges();
+
+  /// Valida sintaxis y dominio de un correo electrónico.
+  static String? validateEmailAddress(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Ingrese un correo electrónico válido';
+    }
+    final clean = value.trim().toLowerCase();
+    final emailRegex = RegExp(
+      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+    );
+    if (!emailRegex.hasMatch(clean)) {
+      return 'Ingrese un correo electrónico válido (ej. nombre@dominio.com)';
+    }
+    final parts = clean.split('@');
+    final domain = parts.last;
+    final domainLabels = domain.split('.');
+    if (domainLabels.any((l) => l.isEmpty || l.length < 2)) {
+      return 'El dominio del correo no es válido';
+    }
+    return null;
+  }
 
   // ─── Google Sign-In ──────────────────────────────────────────
   Future<UserCredential?> signInWithGoogle() async {
@@ -75,10 +97,46 @@ class AuthService {
       if (displayName != null && displayName.isNotEmpty) {
         await credential.user?.updateDisplayName(displayName);
       }
+      // Enviar correo de verificación para comprobar que la cuenta existe realmente
+      try {
+        await credential.user?.sendEmailVerification();
+      } catch (e) {
+        debugPrint('AuthService sendEmailVerification warning: $e');
+      }
       return credential;
     } catch (e) {
       debugPrint('AuthService createAccountWithEmail error: $e');
       rethrow;
+    }
+  }
+
+  /// Recarga el usuario desde Firebase y comprueba si ya verificó su correo.
+  Future<bool> checkEmailVerified() async {
+    try {
+      await _auth.currentUser?.reload();
+      return _auth.currentUser?.emailVerified ?? false;
+    } catch (e) {
+      debugPrint('AuthService checkEmailVerified error: $e');
+      return false;
+    }
+  }
+
+  /// Reenvía el correo de verificación al usuario actual.
+  Future<void> resendVerificationEmail() async {
+    await _auth.currentUser?.sendEmailVerification();
+  }
+
+  /// Cierra la sesión y elimina la cuenta temporal si no fue verificada a tiempo.
+  Future<void> cancelUnverifiedSession() async {
+    try {
+      final user = _auth.currentUser;
+      if (user != null && !user.emailVerified) {
+        try {
+          await user.delete();
+        } catch (_) {}
+      }
+    } finally {
+      await signOut();
     }
   }
 
@@ -118,7 +176,8 @@ class AuthService {
         case 'too-many-requests':
           return 'Demasiados intentos. Intenta más tarde.';
         case 'configuration-not-found':
-          return 'Falta habilitar el proveedor en Firebase Console (Authentication > Sign-in method).';
+        case 'operation-not-allowed':
+          return 'Falta habilitar el método "Correo electrónico/contraseña" en Firebase Console (Authentication > Sign-in method).';
         case 'api-key-not-valid':
           return 'La API Key de Firebase no es válida o aún se está propagando en Google Cloud.';
         case 'popup-closed-by-user':

@@ -6,5 +6,11 @@ service cloud.firestore {
     match /users/{userId}/{document=**} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
+
+    // Lista de espera para interesados en «Custodio de la Palabra»
+    match /custodio_interesados/{docId} {
+      allow create, update: if request.auth != null && request.auth.uid == docId;
+      allow read: if request.auth != null && request.auth.uid == docId;
+    }
   }
 }

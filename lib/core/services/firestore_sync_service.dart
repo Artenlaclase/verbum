@@ -252,6 +252,68 @@ class FirestoreSyncService {
     }
   }
 
+  Future<int> getAnnotationsCount() async {
+    if (!_hasUser) return 0;
+    try {
+      final notesSnap = await _userDoc().collection('notes').get().timeout(_timeout);
+      final hlSnap = await _userDoc().collection('highlights').get().timeout(_timeout);
+      return notesSnap.docs.length + hlSnap.docs.length;
+    } catch (e) {
+      debugPrint('FirestoreSyncService getAnnotationsCount: $e');
+      return 0;
+    }
+  }
+
+  // ==================== INTERESADOS EN «CUSTODIO DE LA PALABRA» ====================
+
+  /// Registra el correo y datos de la sesión que hizo clic en «Unirme como Custodio de la Palabra»
+  /// para poder contactarlos cuando la función esté habilitada.
+  Future<void> registerCustodioInterest({
+    String? emailOverride,
+    String? nombreOverride,
+  }) async {
+    final user = AuthService.instance.currentUser;
+    final email = emailOverride ?? user?.email ?? 'sin_correo';
+    final nombre = nombreOverride ?? user?.displayName ?? 'Usuario Verbum';
+    final nowIso = DateTime.now().toIso8601String();
+
+    final payload = {
+      'uid': _uid ?? 'invitado',
+      'email': email,
+      'nombre': nombre,
+      'interesado_custodio': true,
+      'fecha_clic_custodio': nowIso,
+    };
+
+    if (_hasUser) {
+      try {
+        // 1. Guardar directamente en el documento raíz users/{uid} (cubierto por las reglas actuales)
+        await _userDoc()
+            .set(payload, SetOptions(merge: true))
+            .timeout(_timeout);
+
+        // 2. Guardar detalle en users/{uid}/data/custodio_waitlist
+        await _userDoc()
+            .collection('data')
+            .doc('custodio_waitlist')
+            .set(payload, SetOptions(merge: true))
+            .timeout(_timeout);
+      } catch (e) {
+        debugPrint('FirestoreSyncService registerCustodioInterest userDoc: $e');
+      }
+    }
+
+    try {
+      // 3. Guardar también en colección general custodio_interesados (si las reglas lo permiten)
+      final docId = _uid ?? email.replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
+      await _db
+          .collection('custodio_interesados')
+          .doc(docId)
+          .set(payload, SetOptions(merge: true))
+          .timeout(_timeout);
+    } catch (_) {}
+  }
+
   // ==================== MIGRACIÓN LOCAL → FIRESTORE ====================
 
   /// Migra todos los datos locales (SharedPreferences) a Firestore.

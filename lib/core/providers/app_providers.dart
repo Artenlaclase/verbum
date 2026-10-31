@@ -10,6 +10,7 @@ import '../../features/profile/models/saved_passage.dart';
 import '../../features/profile/models/user_profile.dart';
 import '../../features/thematic_suggestions/data/thematic_suggestions_repository.dart';
 import '../../features/thematic_suggestions/models/thematic_suggestion.dart';
+import 'auth_providers.dart';
 
 // Repositorios
 final bibleRepositoryProvider = Provider<BibleRepository>((ref) {
@@ -26,8 +27,9 @@ class VerbumPlanLimits {
   static const int maxFreeAnnotations = 5;
 }
 
-// Proveedor del Perfil del usuario
+// Proveedor del Perfil del usuario (se actualiza automáticamente al iniciar/cerrar sesión)
 final userProfileProvider = FutureProvider<UserProfile>((ref) async {
+  ref.watch(authStateProvider);
   final repo = ref.watch(profileRepositoryProvider);
   return repo.getProfile();
 });
@@ -38,14 +40,16 @@ final isCustodioProvider = Provider<bool>((ref) {
   return profile?.preferencias['esCustodio'] == true;
 });
 
-// Proveedor de estadísticas del perfil
+// Proveedor de estadísticas del perfil (se actualiza automáticamente al iniciar/cerrar sesión)
 final readingStatsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
+  ref.watch(authStateProvider);
   final repo = ref.watch(profileRepositoryProvider);
   return repo.getReadingStats();
 });
 
-// Proveedor del marcador de lectura continua
+// Proveedor del marcador de lectura continua (se actualiza automáticamente al iniciar/cerrar sesión)
 final bookmarkProvider = FutureProvider<Bookmark?>((ref) async {
+  ref.watch(authStateProvider);
   final repo = ref.watch(profileRepositoryProvider);
   return repo.getBookmark();
 });
@@ -61,6 +65,7 @@ final selectedTagFilterProvider =
     NotifierProvider<SelectedTagNotifier, String>(SelectedTagNotifier.new);
 
 final savedPassagesProvider = FutureProvider<List<SavedPassage>>((ref) async {
+  ref.watch(authStateProvider);
   final repo = ref.watch(profileRepositoryProvider);
   final tag = ref.watch(selectedTagFilterProvider);
   return repo.getSavedPassages(etiqueta: tag == 'Todos' ? null : tag);
