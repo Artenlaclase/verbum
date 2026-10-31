@@ -2,8 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/app_providers.dart';
+import '../../../core/providers/auth_providers.dart';
+import '../../../core/services/auth_service.dart';
+import '../../../core/services/firestore_sync_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/liturgical_colors.dart';
+import '../../auth/presentation/auth_screen.dart';
 import '../models/user_profile.dart';
 import 'saved_passages_screen.dart';
 
@@ -112,6 +116,10 @@ class ProfileScreen extends ConsumerWidget {
                 );
               },
             ),
+            const SizedBox(height: 20),
+
+            // TARJETA DE SINCRONIZACIÓN FIREBASE
+            _buildCloudSyncCard(context, ref),
             const SizedBox(height: 24),
 
             // ESTADÍSTICAS EN TIEMPO REAL
@@ -257,6 +265,211 @@ class ProfileScreen extends ConsumerWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildCloudSyncCard(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authStateProvider);
+    final user = authState.asData?.value;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    if (user != null) {
+      // Usuario Autenticado
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF161A20) : Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: LiturgicalColors.verde.withValues(alpha: 0.35),
+            width: 1.2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: LiturgicalColors.verde.withValues(alpha: 0.08),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: LiturgicalColors.verde.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.cloud_done_rounded, color: LiturgicalColors.verde, size: 22),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Sincronización en la Nube Activa',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        user.displayName ?? user.email ?? 'Usuario de Verbum',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.7),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Cerrar sesión',
+                  icon: const Icon(Icons.logout_rounded, size: 20, color: Colors.grey),
+                  onPressed: () async {
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('Cerrar Sesión'),
+                        content: const Text('¿Deseas cerrar tu sesión? Tus datos locales se conservarán en este dispositivo.'),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(backgroundColor: Colors.red.shade700),
+                            onPressed: () => Navigator.pop(ctx, true),
+                            child: const Text('Cerrar sesión', style: TextStyle(color: Colors.white)),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirm == true) {
+                      await AuthService.instance.signOut();
+                      ref.invalidate(userProfileProvider);
+                      ref.invalidate(bookmarkProvider);
+                      ref.invalidate(savedPassagesProvider);
+                      ref.invalidate(readingStatsProvider);
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Sesión cerrada')),
+                        );
+                      }
+                    }
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    side: BorderSide(color: AppTheme.primaryGold.withValues(alpha: 0.5)),
+                  ),
+                  icon: const Icon(Icons.sync_rounded, size: 16, color: AppTheme.primaryGold),
+                  label: const Text('Sincronizar ahora', style: TextStyle(color: AppTheme.primaryGold, fontSize: 12)),
+                  onPressed: () async {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Sincronizando con Firebase Firestore...'), duration: Duration(seconds: 1)),
+                    );
+                    await FirestoreSyncService.instance.migrateLocalToFirestore();
+                    ref.invalidate(userProfileProvider);
+                    ref.invalidate(bookmarkProvider);
+                    ref.invalidate(savedPassagesProvider);
+                    ref.invalidate(readingStatsProvider);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('¡Datos sincronizados exitosamente!')),
+                      );
+                    }
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Usuario Invitado / Modo Local
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF161A20) : Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: AppTheme.primaryGold.withValues(alpha: 0.35),
+          width: 1.2,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryGold.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.cloud_queue_rounded, color: AppTheme.primaryGold, size: 22),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Modo Local (Sin sincronizar)',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Respalda tus pasajes, notas y lecturas en la nube.',
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryGold,
+                foregroundColor: Colors.black,
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              icon: const Icon(Icons.login_rounded, size: 18),
+              label: const Text('Iniciar Sesión / Sincronizar Cuenta', style: TextStyle(fontWeight: FontWeight.bold)),
+              onPressed: () async {
+                final success = await Navigator.push<bool>(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AuthScreen()),
+                );
+                if (success == true && context.mounted) {
+                  ref.invalidate(userProfileProvider);
+                  ref.invalidate(bookmarkProvider);
+                  ref.invalidate(savedPassagesProvider);
+                  ref.invalidate(readingStatsProvider);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('¡Sesión iniciada y datos sincronizados!')),
+                  );
+                }
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

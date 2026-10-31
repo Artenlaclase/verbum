@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
 import '../../../core/database/database_helper.dart';
+import '../../../core/services/auth_service.dart';
+import '../../../core/services/firestore_sync_service.dart';
 import '../../bible/data/bible_initial_data.dart';
 import '../models/bookmark.dart';
 import '../models/reading_history.dart';
@@ -16,12 +19,24 @@ class ProfileRepository {
   ProfileRepository({DatabaseHelper? dbHelper})
       : _dbHelper = dbHelper ?? DatabaseHelper.instance;
 
+  bool get _isAuthenticated => AuthService.instance.isSignedIn;
+  FirestoreSyncService get _firestore => FirestoreSyncService.instance;
+
   // ==================== PERFIL DE USUARIO ====================
 
   Future<UserProfile> getProfile() async {
-    final db = await _dbHelper.database;
+    // 1. Si hay usuario autenticado, intentar Firestore primero
+    if (_isAuthenticated) {
+      try {
+        final cloudProfile = await _firestore.getProfile();
+        if (cloudProfile != null) return cloudProfile;
+      } catch (e) {
+        debugPrint('ProfileRepository getProfile Firestore fallback: $e');
+      }
+    }
 
-    // 1. Si hay base de datos SQLite disponible
+    // 2. Si hay base de datos SQLite disponible
+    final db = await _dbHelper.database;
     if (db != null) {
       try {
         final maps = await db.query('perfil', where: 'id = ?', whereArgs: [1]);
@@ -33,7 +48,7 @@ class ProfileRepository {
       }
     }
 
-    // 2. Si estamos en Web o respaldo SharedPreferences
+    // 3. Si estamos en Web o respaldo SharedPreferences
     final prefs = await SharedPreferences.getInstance();
     final profileJson = prefs.getString('verbum_profile');
     if (profileJson != null) {
@@ -44,7 +59,9 @@ class ProfileRepository {
 
     final defaultProfile = UserProfile(
       id: 1,
-      nombre: 'Lector Verbum',
+      nombre: _isAuthenticated
+          ? (AuthService.instance.currentUser?.displayName ?? 'Lector Verbum')
+          : 'Lector Verbum',
       avatar: '✝️',
       fechaCreacion: DateTime.now(),
       preferencias: {
@@ -54,12 +71,17 @@ class ProfileRepository {
       },
     );
 
+    // Guardar en todas las capas disponibles
     if (db != null) {
       try {
         await db.insert('perfil', defaultProfile.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
       } catch (_) {}
     }
     await prefs.setString('verbum_profile', jsonEncode(defaultProfile.toMap()));
+
+    if (_isAuthenticated) {
+      unawaited(_firestore.saveProfile(defaultProfile));
+    }
 
     // Inicializar marcador y pasaje de bienvenida
     await saveBookmark(Bookmark(
@@ -105,11 +127,26 @@ class ProfileRepository {
     }
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('verbum_profile', jsonEncode(profile.toMap()));
+
+    if (_isAuthenticated) {
+      unawaited(_firestore.saveProfile(profile));
+    }
   }
 
   // ==================== MARCADOR DE LECTURA CONTINUA ====================
 
   Future<Bookmark?> getBookmark() async {
+    // 1. Firestore si autenticado
+    if (_isAuthenticated) {
+      try {
+        final cloudBookmark = await _firestore.getBookmark();
+        if (cloudBookmark != null) return cloudBookmark;
+      } catch (e) {
+        debugPrint('ProfileRepository getBookmark Firestore fallback: $e');
+      }
+    }
+
+    // 2. SQLite
     final db = await _dbHelper.database;
     if (db != null) {
       try {
@@ -132,6 +169,7 @@ class ProfileRepository {
       }
     }
 
+    // 3. SharedPreferences
     final prefs = await SharedPreferences.getInstance();
     final bmJson = prefs.getString('verbum_bookmark');
     if (bmJson != null) {
@@ -175,11 +213,26 @@ class ProfileRepository {
     }
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('verbum_bookmark', jsonEncode(bookmark.toMap()));
+
+    if (_isAuthenticated) {
+      unawaited(_firestore.saveBookmark(bookmark));
+    }
   }
 
   // ==================== PASAJES GUARDADOS ====================
 
   Future<List<SavedPassage>> getSavedPassages({String? etiqueta}) async {
+    // 1. Firestore si autenticado
+    if (_isAuthenticated) {
+      try {
+        final cloudPassages = await _firestore.getSavedPassages(etiqueta: etiqueta);
+        if (cloudPassages.isNotEmpty) return cloudPassages;
+      } catch (e) {
+        debugPrint('ProfileRepository getSavedPassages Firestore fallback: $e');
+      }
+    }
+
+    // 2. SQLite
     final db = await _dbHelper.database;
     if (db != null) {
       try {
@@ -207,6 +260,7 @@ class ProfileRepository {
       }
     }
 
+    // 3. SharedPreferences
     final prefs = await SharedPreferences.getInstance();
     final listJson = prefs.getStringList('verbum_saved_passages') ?? [];
     final passages = listJson.map((str) => SavedPassage.fromMap(jsonDecode(str) as Map<String, dynamic>)).toList();
@@ -234,6 +288,10 @@ class ProfileRepository {
     final listJson = prefs.getStringList('verbum_saved_passages') ?? [];
     listJson.insert(0, jsonEncode(passage.toMap()));
     await prefs.setStringList('verbum_saved_passages', listJson);
+
+    if (_isAuthenticated) {
+      unawaited(_firestore.savePassage(passage));
+    }
     return id;
   }
 
@@ -287,9 +345,24 @@ class ProfileRepository {
     listJson.insert(0, jsonEncode(logMap));
     if (listJson.length > 50) listJson.removeLast();
     await prefs.setStringList('verbum_history', listJson);
+
+    if (_isAuthenticated) {
+      unawaited(_firestore.logReading(logMap));
+    }
   }
 
   Future<List<ReadingHistory>> getReadingHistory({int limit = 30}) async {
+    // 1. Firestore si autenticado
+    if (_isAuthenticated) {
+      try {
+        final cloudHistory = await _firestore.getReadingHistory(limit: limit);
+        if (cloudHistory.isNotEmpty) return cloudHistory;
+      } catch (e) {
+        debugPrint('ProfileRepository getReadingHistory Firestore fallback: $e');
+      }
+    }
+
+    // 2. SQLite
     final db = await _dbHelper.database;
     if (db != null) {
       try {
@@ -315,6 +388,7 @@ class ProfileRepository {
       }
     }
 
+    // 3. SharedPreferences
     final prefs = await SharedPreferences.getInstance();
     final listJson = prefs.getStringList('verbum_history') ?? [];
     return listJson.take(limit).map((str) {
@@ -370,6 +444,10 @@ class ProfileRepository {
     final list = prefs.getStringList('verbum_highlights') ?? [];
     list.add(jsonEncode(hlMap));
     await prefs.setStringList('verbum_highlights', list);
+
+    if (_isAuthenticated) {
+      unawaited(_firestore.addHighlight(hlMap));
+    }
   }
 
   Future<List<UserHighlight>> getHighlightsForChapter(int libroId, int capitulo) async {
@@ -411,6 +489,10 @@ class ProfileRepository {
     final list = prefs.getStringList('verbum_notes') ?? [];
     list.add(jsonEncode(noteMap));
     await prefs.setStringList('verbum_notes', list);
+
+    if (_isAuthenticated) {
+      unawaited(_firestore.addNote(noteMap));
+    }
   }
 
   Future<List<UserNote>> getAllNotes() async {
