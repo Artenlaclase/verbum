@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1E1A14"/>
+      <stop offset="100%" stop-color="#0D0F12"/>
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F2D57E"/>
+      <stop offset="50%" stop-color="#C9A227"/>
+      <stop offset="100%" stop-color="#9E7B16"/>
+    </linearGradient>
+    <linearGradient id="pageGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FAF6EC"/>
+      <stop offset="100%" stop-color="#E8DEC5"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Fondo redondeado solemne -->
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#bgGrad)" stroke="url(#goldGrad)" stroke-width="2.5"/>
+
+  <!-- Cubierta dorada del libro -->
+  <path d="M10 18 C10 15.5, 22 14, 32 18 C42 14, 54 15.5, 54 18 L54 47 C54 49, 42 47.5, 32 51.5 C22 47.5, 10 49, 10 47 Z"
+        fill="url(#goldGrad)"/>
+
+  <!-- Páginas abiertas izquierda y derecha -->
+  <path d="M13 16 C19 13.5, 26 14.5, 32 18.5 L32 48.5 C26 44.5, 19 43.5, 13 46 Z"
+        fill="url(#pageGrad)"/>
+  <path d="M51 16 C45 13.5, 38 14.5, 32 18.5 L32 48.5 C38 44.5, 45 43.5, 51 46 Z"
+        fill="url(#pageGrad)"/>
+
+  <!-- Pliegue central del libro -->
+  <line x1="32" y1="18" x2="32" y2="49" stroke="#C9A227" stroke-width="1.6"/>
+
+  <!-- Líneas de escritura página izquierda -->
+  <line x1="17" y1="23" x2="28" y2="24" stroke="#8C734B" stroke-width="1.6" stroke-linecap="round"/>
+  <line x1="17" y1="28" x2="28" y2="29" stroke="#8C734B" stroke-width="1.6" stroke-linecap="round"/>
+  <line x1="17" y1="33" x2="28" y2="34" stroke="#8C734B" stroke-width="1.6" stroke-linecap="round"/>
+  <line x1="17" y1="38" x2="25" y2="38.8" stroke="#8C734B" stroke-width="1.6" stroke-linecap="round"/>
+
+  <!-- Pequeña cruz dorada en página derecha -->
+  <line x1="41.5" y1="22" x2="41.5" y2="37" stroke="#C9A227" stroke-width="2.4" stroke-linecap="round"/>
+  <line x1="36.5" y1="26.8" x2="46.5" y2="26.8" stroke="#C9A227" stroke-width="2.4" stroke-linecap="round"/>
+
+  <!-- Cinta marcadora roja/dorada -->
+  <path d="M30.5 48.5 L30.5 56 L32 54 L33.5 56 L33.5 48.5 Z" fill="#B22234"/>
+</svg>
+
