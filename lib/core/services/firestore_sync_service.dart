@@ -48,11 +48,34 @@ class FirestoreSyncService {
   Future<void> saveProfile(UserProfile profile) async {
     if (!_hasUser) return;
     try {
+      final user = AuthService.instance.currentUser;
+      final email = user?.email;
+      final nowIso = DateTime.now().toIso8601String();
+
+      // Guardar metadatos visibles directamente en el documento raíz users/{uid}
+      await _userDoc().set(
+        {
+          'uid': _uid,
+          if (email != null) 'email': email,
+          'nombre': profile.nombre,
+          'avatar': profile.avatar,
+          'ultima_sincronizacion': nowIso,
+        },
+        SetOptions(merge: true),
+      ).timeout(_timeout);
+
+      // Guardar el perfil completo en users/{uid}/data/profile
+      final profileData = {
+        ...profile.toMap(),
+        if (email != null) 'email': email,
+        'uid': _uid,
+        'ultima_sincronizacion': nowIso,
+      };
       await _userDoc()
           .collection('data')
           .doc('profile')
           .set(
-            profile.toMap(),
+            profileData,
             SetOptions(merge: true),
           )
           .timeout(_timeout);
@@ -239,18 +262,20 @@ class FirestoreSyncService {
     try {
       final prefs = await SharedPreferences.getInstance();
 
-      // 1. Perfil
+      // 1. Perfil y metadatos de cuenta (email, uid)
       final profileJson = prefs.getString('verbum_profile');
       if (profileJson != null) {
         try {
           final map = jsonDecode(profileJson) as Map<String, dynamic>;
           final profile = UserProfile.fromMap(map);
-          // Solo migrar si no existe ya en Firestore
           final existing = await getProfile();
-          if (existing == null) {
-            await saveProfile(profile);
-          }
+          await saveProfile(existing ?? profile);
         } catch (_) {}
+      } else {
+        final existing = await getProfile();
+        if (existing != null) {
+          await saveProfile(existing);
+        }
       }
 
       // 2. Marcador
