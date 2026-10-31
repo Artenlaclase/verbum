@@ -7,6 +7,7 @@ import '../../bible/presentation/bible_screen.dart';
 import '../../bible/presentation/continuous_reader_screen.dart';
 import '../../bible/presentation/search_screen.dart';
 import '../../liturgical_calendar/presentation/calendar_screen.dart';
+import '../../profile/models/bookmark.dart';
 import '../../profile/presentation/profile_screen.dart';
 import '../../profile/presentation/saved_passages_screen.dart';
 import 'widgets/continue_reading_card.dart';
@@ -151,12 +152,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
           const SizedBox(height: 20),
 
-          // 1. TARJETA "HOY" LITÚRGICA
-          TodayLiturgicalCard(
-            day: liturgicalDay,
-            onOpenCalendar: () {
-              setState(() => _currentIndex = 2); // Ir a pestaña de calendario
-            },
+          // 1. 🕊️ GUÍA BÍBLICA PARA TU DÍA (Amor, Dinero, Salud, Amistad, Armonía)
+          ThematicSuggestionsWidget(
             onOpenReading: (reference) {
               Navigator.push(
                 context,
@@ -168,7 +165,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
           const SizedBox(height: 18),
 
-          // 2. 🆕 TARJETA "CONTINUAR LECTURA"
+          // 2. 🆕 TARJETA "MODO CORRIDO" (Empieza en Génesis 1:1 para usuarios nuevos)
           bookmarkAsync.when(
             loading: () => const SizedBox.shrink(),
             error: (_, __) => const SizedBox.shrink(),
@@ -180,20 +177,45 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     context,
                     MaterialPageRoute(
                       builder: (_) => ContinuousReaderScreen(
-                        initialBookId: bm?.libroId ?? 43,
-                        initialChapter: bm?.capitulo ?? 5,
-                        initialVerse: bm?.versiculo ?? 21,
+                        initialBookId: bm?.libroId ?? 1,
+                        initialChapter: bm?.capitulo ?? 1,
+                        initialVerse: bm?.versiculo ?? 1,
                       ),
                     ),
                   );
                 },
+                onResetToZero: () async {
+                  final zeroBookmark = Bookmark(
+                    perfilId: 1,
+                    libroId: 1,
+                    capitulo: 1,
+                    versiculo: 1,
+                    modo: 'continuo',
+                    fechaActualizacion: DateTime.now(),
+                    libroNombre: 'Génesis',
+                    libroAbreviatura: 'Gn',
+                  );
+                  await ref.read(profileRepositoryProvider).saveBookmark(zeroBookmark);
+                  ref.invalidate(bookmarkProvider);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Modo Corrido reiniciado en Génesis 1:1'),
+                      ),
+                    );
+                  }
+                },
               );
             },
           ),
-          const SizedBox(height: 22),
+          const SizedBox(height: 18),
 
-          // 3. 🕊️ SUGERENCIAS BÍBLICAS TEMÁTICAS DIARIAS (Amor, Dinero, Salud, Amistad, Armonía)
-          ThematicSuggestionsWidget(
+          // 3. TARJETA "HOY" DEL CALENDARIO LITÚRGICO
+          TodayLiturgicalCard(
+            day: liturgicalDay,
+            onOpenCalendar: () {
+              setState(() => _currentIndex = 2); // Ir a pestaña de calendario
+            },
             onOpenReading: (reference) {
               Navigator.push(
                 context,
@@ -209,12 +231,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           QuickActionsGrid(
             onOpenBible: () => setState(() => _currentIndex = 1),
             onOpenContinuous: () {
+              final bm = bookmarkAsync.asData?.value;
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => const ContinuousReaderScreen(
-                    initialBookId: 43,
-                    initialChapter: 1,
+                  builder: (_) => ContinuousReaderScreen(
+                    initialBookId: bm?.libroId ?? 1,
+                    initialChapter: bm?.capitulo ?? 1,
+                    initialVerse: bm?.versiculo ?? 1,
                   ),
                 ),
               );
