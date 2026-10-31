@@ -20,10 +20,22 @@ final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
   return ProfileRepository();
 });
 
+// Límites de «Camino Abierto» (versión gratuita) frente a «Custodio de la Palabra»
+class VerbumPlanLimits {
+  static const int maxFreePassages = 5;
+  static const int maxFreeAnnotations = 5;
+}
+
 // Proveedor del Perfil del usuario
 final userProfileProvider = FutureProvider<UserProfile>((ref) async {
   final repo = ref.watch(profileRepositoryProvider);
   return repo.getProfile();
+});
+
+// Indica si el usuario pertenece a «Custodio de la Palabra» (versión completa / sostenimiento)
+final isCustodioProvider = Provider<bool>((ref) {
+  final profile = ref.watch(userProfileProvider).asData?.value;
+  return profile?.preferencias['esCustodio'] == true;
 });
 
 // Proveedor de estadísticas del perfil

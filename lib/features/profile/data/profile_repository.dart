@@ -83,12 +83,12 @@ class ProfileRepository {
       unawaited(_firestore.saveProfile(defaultProfile));
     }
 
-    // Inicializar marcador y pasaje de bienvenida
+    // Inicializar marcador desde el principio (Génesis 1:1) y pasaje de bienvenida
     await saveBookmark(Bookmark(
       perfilId: 1,
-      libroId: 43, // Juan
-      capitulo: 5,
-      versiculo: 21,
+      libroId: 1, // Génesis
+      capitulo: 1,
+      versiculo: 1,
       modo: 'continuo',
       fechaActualizacion: DateTime.now(),
     ));
@@ -135,12 +135,36 @@ class ProfileRepository {
 
   // ==================== MARCADOR DE LECTURA CONTINUA ====================
 
+  Bookmark _defaultZeroBookmark() {
+    return Bookmark(
+      perfilId: 1,
+      libroId: 1,
+      capitulo: 1,
+      versiculo: 1,
+      modo: 'continuo',
+      fechaActualizacion: DateTime.now(),
+      libroNombre: 'Génesis',
+      libroAbreviatura: 'Gn',
+    );
+  }
+
+  bool _isLegacySeedBookmark(Bookmark bm) {
+    return bm.libroId == 43 && bm.capitulo == 5 && bm.versiculo == 21;
+  }
+
   Future<Bookmark?> getBookmark() async {
     // 1. Firestore si autenticado
     if (_isAuthenticated) {
       try {
         final cloudBookmark = await _firestore.getBookmark();
-        if (cloudBookmark != null) return cloudBookmark;
+        if (cloudBookmark != null) {
+          if (_isLegacySeedBookmark(cloudBookmark)) {
+            final zero = _defaultZeroBookmark();
+            unawaited(saveBookmark(zero));
+            return zero;
+          }
+          return cloudBookmark;
+        }
       } catch (e) {
         debugPrint('ProfileRepository getBookmark Firestore fallback: $e');
       }
@@ -158,11 +182,17 @@ class ProfileRepository {
             (b) => b.id == libroId,
             orElse: () => BibleInitialData.books.first,
           );
-          return Bookmark.fromMap(
+          final bm = Bookmark.fromMap(
             map,
             libroNombre: book.nombre,
             libroAbreviatura: book.abreviatura,
           );
+          if (_isLegacySeedBookmark(bm)) {
+            final zero = _defaultZeroBookmark();
+            unawaited(saveBookmark(zero));
+            return zero;
+          }
+          return bm;
         }
       } catch (e) {
         debugPrint('ProfileRepository getBookmark SQLite fallback: $e');
@@ -180,24 +210,21 @@ class ProfileRepository {
           (b) => b.id == libroId,
           orElse: () => BibleInitialData.books.first,
         );
-        return Bookmark.fromMap(
+        final bm = Bookmark.fromMap(
           map,
           libroNombre: book.nombre,
           libroAbreviatura: book.abreviatura,
         );
+        if (_isLegacySeedBookmark(bm)) {
+          final zero = _defaultZeroBookmark();
+          unawaited(saveBookmark(zero));
+          return zero;
+        }
+        return bm;
       } catch (_) {}
     }
 
-    return Bookmark(
-      perfilId: 1,
-      libroId: 43,
-      capitulo: 5,
-      versiculo: 21,
-      modo: 'continuo',
-      fechaActualizacion: DateTime.now(),
-      libroNombre: 'Juan',
-      libroAbreviatura: 'Jn',
-    );
+    return _defaultZeroBookmark();
   }
 
   Future<void> saveBookmark(Bookmark bookmark) async {

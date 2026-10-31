@@ -437,6 +437,26 @@ class _ChapterReaderScreenState extends ConsumerState<ChapterReaderScreen> {
                     foregroundColor: Colors.black,
                   ),
                   onPressed: () async {
+                    final isCustodio = ref.read(isCustodioProvider);
+                    final profileRepo = ref.read(profileRepositoryProvider);
+                    if (!isCustodio) {
+                      final existing = await profileRepo.getSavedPassages();
+                      if (existing.length >= VerbumPlanLimits.maxFreePassages) {
+                        if (dCtx.mounted) Navigator.pop(dCtx);
+                        if (mounted) {
+                          ScaffoldMessenger.of(this.context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Has alcanzado los 5 pasajes de Camino Abierto. Únete como «Custodio de la Palabra» en tu Perfil para guardar sin límite.',
+                              ),
+                              duration: Duration(seconds: 4),
+                            ),
+                          );
+                        }
+                        return;
+                      }
+                    }
+
                     final passage = SavedPassage(
                       perfilId: 1,
                       titulo: titleController.text.trim().isNotEmpty ? titleController.text.trim() : null,
@@ -451,15 +471,16 @@ class _ChapterReaderScreenState extends ConsumerState<ChapterReaderScreen> {
                       notas: noteController.text.trim().isNotEmpty ? noteController.text.trim() : null,
                     );
 
-                    final profileRepo = ref.read(profileRepositoryProvider);
                     await profileRepo.savePassage(passage);
                     ref.invalidate(savedPassagesProvider);
                     ref.invalidate(readingStatsProvider);
 
-                    Navigator.pop(dCtx);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Pasaje guardado en tu perfil (${selectedTag})')),
-                    );
+                    if (dCtx.mounted) Navigator.pop(dCtx);
+                    if (mounted) {
+                      ScaffoldMessenger.of(this.context).showSnackBar(
+                        SnackBar(content: Text('Pasaje guardado en tu perfil ($selectedTag)')),
+                      );
+                    }
                   },
                   child: const Text('Guardar'),
                 ),

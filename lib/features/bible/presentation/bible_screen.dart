@@ -40,7 +40,7 @@ class BibleScreen extends ConsumerWidget {
                 context,
                 MaterialPageRoute(
                   builder: (_) => const ContinuousReaderScreen(
-                    initialBookId: 43, // Juan
+                    initialBookId: 1, // Génesis 1:1 (empezar en cero)
                     initialChapter: 1,
                   ),
                 ),

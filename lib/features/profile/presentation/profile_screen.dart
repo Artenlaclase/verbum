@@ -18,6 +18,8 @@ class ProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profileAsync = ref.watch(userProfileProvider);
     final statsAsync = ref.watch(readingStatsProvider);
+    final isCustodio = ref.watch(isCustodioProvider);
+    final isAuthenticated = ref.watch(authStateProvider).asData?.value != null;
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
@@ -212,57 +214,100 @@ class ProfileScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 24),
 
-            // PREFERENCIAS Y SISTEMA
-            const Text(
-              'Ajustes de la Aplicación',
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+            // ALIANZA DE SOSTENIMIENTO: «CUSTODIO DE LA PALABRA» vs «CAMINO ABIERTO»
+            _buildCustodioAllianceCard(
+              context: context,
+              ref: ref,
+              isCustodio: isCustodio,
+              profile: profileAsync.asData?.value,
+              stats: statsAsync.asData?.value,
             ),
-            const SizedBox(height: 12),
-            Card(
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-                side: BorderSide(
-                  color: isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.06),
-                ),
-              ),
-              child: Column(
+            const SizedBox(height: 24),
+
+            // PREFERENCIAS Y SISTEMA (Solo visible cuando es Custodio de la Palabra)
+            if (isCustodio) ...[
+              Row(
                 children: [
-                  ListTile(
-                    leading: const Icon(Icons.palette_outlined),
-                    title: const Text('Tema visual'),
-                    trailing: DropdownButton<ThemeMode>(
-                      value: ref.watch(themeModeStateProvider),
-                      underline: const SizedBox(),
-                      onChanged: (mode) {
-                        if (mode != null) {
-                          ref.read(themeModeStateProvider.notifier).setThemeMode(mode);
-                        }
-                      },
-                      items: const [
-                        DropdownMenuItem(value: ThemeMode.system, child: Text('Sistema')),
-                        DropdownMenuItem(value: ThemeMode.light, child: Text('Claro (Pergamino)')),
-                        DropdownMenuItem(value: ThemeMode.dark, child: Text('Oscuro (Carbón)')),
-                      ],
-                    ),
-                  ),
-                  const Divider(height: 1),
-                  ListTile(
-                    leading: const Icon(Icons.file_upload_outlined, color: AppTheme.primaryGold),
-                    title: const Text('Exportar Perfil (JSON)'),
-                    subtitle: const Text('Copia de seguridad local sin servidor'),
-                    onTap: () => _exportProfile(context, ref),
-                  ),
-                  const Divider(height: 1),
-                  ListTile(
-                    leading: const Icon(Icons.file_download_outlined, color: LiturgicalColors.morado),
-                    title: const Text('Importar Perfil (JSON)'),
-                    subtitle: const Text('Restaurar datos desde archivo o texto'),
-                    onTap: () => _importProfile(context, ref),
+                  const Icon(Icons.auto_awesome_rounded, size: 18, color: AppTheme.primaryGold),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Ajustes del Scriptorium',
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
-            ),
+              const SizedBox(height: 12),
+              Card(
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(
+                    color: AppTheme.primaryGold.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    ListTile(
+                      leading: const Icon(Icons.palette_outlined, color: AppTheme.primaryGold),
+                      title: const Text('Tema visual'),
+                      trailing: DropdownButton<ThemeMode>(
+                        value: ref.watch(themeModeStateProvider),
+                        underline: const SizedBox(),
+                        onChanged: (mode) {
+                          if (mode != null) {
+                            ref.read(themeModeStateProvider.notifier).setThemeMode(mode);
+                          }
+                        },
+                        items: const [
+                          DropdownMenuItem(value: ThemeMode.system, child: Text('Sistema')),
+                          DropdownMenuItem(value: ThemeMode.light, child: Text('Claro (Pergamino)')),
+                          DropdownMenuItem(value: ThemeMode.dark, child: Text('Oscuro (Carbón)')),
+                        ],
+                      ),
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      leading: const Icon(Icons.file_upload_outlined, color: AppTheme.primaryGold),
+                      title: const Text('Exportar Relicario (JSON)'),
+                      subtitle: const Text('Copia de seguridad local sin servidor'),
+                      onTap: () => _exportProfile(context, ref),
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      leading: const Icon(Icons.file_download_outlined, color: LiturgicalColors.morado),
+                      title: const Text('Importar Relicario (JSON)'),
+                      subtitle: const Text('Restaurar datos desde archivo o texto'),
+                      onTap: () => _importProfile(context, ref),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
+
+            // BOTÓN DEDICADO DE CERRAR SESIÓN AL PIE DEL PERFIL
+            if (isAuthenticated) ...[
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.redAccent,
+                    side: BorderSide(color: Colors.redAccent.withValues(alpha: 0.45)),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  icon: const Icon(Icons.logout_rounded, size: 18),
+                  label: const Text(
+                    'Cerrar sesión de mi cuenta',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                  onPressed: () => _confirmSignOut(context, ref),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
           ],
         ),
       ),
@@ -330,43 +375,27 @@ class ProfileScreen extends ConsumerWidget {
                 ),
                 IconButton(
                   tooltip: 'Cerrar sesión',
-                  icon: const Icon(Icons.logout_rounded, size: 20, color: Colors.grey),
-                  onPressed: () async {
-                    final confirm = await showDialog<bool>(
-                      context: context,
-                      builder: (ctx) => AlertDialog(
-                        title: const Text('Cerrar Sesión'),
-                        content: const Text('¿Deseas cerrar tu sesión? Tus datos locales se conservarán en este dispositivo.'),
-                        actions: [
-                          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(backgroundColor: Colors.red.shade700),
-                            onPressed: () => Navigator.pop(ctx, true),
-                            child: const Text('Cerrar sesión', style: TextStyle(color: Colors.white)),
-                          ),
-                        ],
-                      ),
-                    );
-                    if (confirm == true) {
-                      await AuthService.instance.signOut();
-                      ref.invalidate(userProfileProvider);
-                      ref.invalidate(bookmarkProvider);
-                      ref.invalidate(savedPassagesProvider);
-                      ref.invalidate(readingStatsProvider);
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Sesión cerrada')),
-                        );
-                      }
-                    }
-                  },
+                  icon: const Icon(Icons.logout_rounded, size: 20, color: Colors.redAccent),
+                  onPressed: () => _confirmSignOut(context, ref),
                 ),
               ],
             ),
             const SizedBox(height: 12),
             Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+                TextButton.icon(
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    foregroundColor: Colors.redAccent,
+                  ),
+                  icon: const Icon(Icons.logout_rounded, size: 15),
+                  label: const Text(
+                    'Cerrar sesión',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                  ),
+                  onPressed: () => _confirmSignOut(context, ref),
+                ),
                 OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(
                     visualDensity: VisualDensity.compact,
@@ -720,6 +749,356 @@ class ProfileScreen extends ConsumerWidget {
                 }
               },
               child: const Text('Restaurar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _confirmSignOut(BuildContext context, WidgetRef ref) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cerrar Sesión'),
+        content: const Text(
+          '¿Deseas cerrar tu sesión? Tus datos locales se conservarán en este dispositivo.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red.shade700),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Cerrar sesión', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true) {
+      await AuthService.instance.signOut();
+      ref.invalidate(userProfileProvider);
+      ref.invalidate(bookmarkProvider);
+      ref.invalidate(savedPassagesProvider);
+      ref.invalidate(readingStatsProvider);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Sesión cerrada correctamente')),
+        );
+      }
+    }
+  }
+
+  Widget _buildCustodioAllianceCard({
+    required BuildContext context,
+    required WidgetRef ref,
+    required bool isCustodio,
+    required UserProfile? profile,
+    required Map<String, dynamic>? stats,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final savedCount = (stats?['pasajesGuardados'] as int?) ?? 0;
+    final notesCount = (stats?['anotaciones'] as int?) ?? 0;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isDark
+              ? [
+                  const Color(0xFF231F16),
+                  const Color(0xFF17191F),
+                ]
+              : [
+                  const Color(0xFFFFF8E5),
+                  const Color(0xFFFFFFFF),
+                ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: AppTheme.primaryGold.withValues(alpha: isCustodio ? 0.65 : 0.4),
+          width: 1.4,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primaryGold.withValues(alpha: 0.10),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryGold.withValues(alpha: 0.18),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.workspace_premium_rounded,
+                  color: AppTheme.primaryGold,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Flexible(
+                          child: Text(
+                            'Custodio de la Palabra',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: isCustodio
+                                ? LiturgicalColors.verde.withValues(alpha: 0.18)
+                                : AppTheme.primaryGold.withValues(alpha: 0.18),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            isCustodio ? 'ACTIVO' : 'CAMINO ABIERTO',
+                            style: TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.bold,
+                              color: isCustodio ? LiturgicalColors.verde : AppTheme.primaryGold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      isCustodio
+                          ? 'Gracias por sostener esta obra de difusión bíblica.'
+                          : 'Alianza espiritual para sostener Verbum y ampliar tu estudio.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDark ? Colors.white70 : Colors.black54,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          if (!isCustodio) ...[
+            // Indicadores de uso en «Camino Abierto» (Gratis)
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.black26 : const Color(0xFFF6F1E3),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Tu capacidad actual en Camino Abierto (Gratis):',
+                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('• Relicario de Pasajes Guardados', style: TextStyle(fontSize: 12)),
+                      Text(
+                        '$savedCount / ${VerbumPlanLimits.maxFreePassages} máx.',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.primaryGold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('• Notas y Subrayados de Estudio', style: TextStyle(fontSize: 12)),
+                      Text(
+                        '$notesCount / ${VerbumPlanLimits.maxFreeAnnotations} máx.',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.primaryGold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            _buildAllianceFeatureRow(
+              Icons.all_inclusive_rounded,
+              'Relicario y Cuaderno sin límites (pasajes, notas y etiquetas infinitas)',
+            ),
+            const SizedBox(height: 6),
+            _buildAllianceFeatureRow(
+              Icons.palette_outlined,
+              'Desbloquea los Ajustes del Scriptorium (Temas Pergamino/Carbón y Copias JSON)',
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryGold,
+                  foregroundColor: Colors.black,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                icon: const Icon(Icons.auto_awesome_rounded, size: 18),
+                label: const Text(
+                  'Unirme como Custodio de la Palabra',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                onPressed: () => _showCustodioModal(context, ref, profile, false),
+              ),
+            ),
+          ] else ...[
+            _buildAllianceFeatureRow(
+              Icons.check_circle_outline_rounded,
+              'Relicario ilimitado y Ajustes del Scriptorium desbloqueados abajo.',
+            ),
+            const SizedBox(height: 10),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () => _showCustodioModal(context, ref, profile, true),
+                child: const Text(
+                  'Gestionar mi Alianza de Custodio',
+                  style: TextStyle(fontSize: 12, color: AppTheme.primaryGold),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAllianceFeatureRow(IconData icon, String text) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 16, color: AppTheme.primaryGold),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(fontSize: 12.5, height: 1.35),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showCustodioModal(
+    BuildContext context,
+    WidgetRef ref,
+    UserProfile? profile,
+    bool currentlyCustodio,
+  ) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              const Icon(Icons.workspace_premium_rounded, color: AppTheme.primaryGold),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'Alianza «Custodio de la Palabra»',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'La Palabra de Dios y el Calendario Litúrgico siempre serán libres en «Camino Abierto».',
+                style: TextStyle(fontSize: 13, height: 1.4),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Al consagrarte como Custodio de la Palabra con tu ofrenda de sostenimiento, ayudas a mantener viva esta obra y recibes:',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, height: 1.4),
+              ),
+              const SizedBox(height: 10),
+              const Text('• Pasajes guardados ilimitados (más allá de los 5 de Camino Abierto).', style: TextStyle(fontSize: 12.5)),
+              const SizedBox(height: 4),
+              const Text('• Notas personales y subrayados sin límite.', style: TextStyle(fontSize: 12.5)),
+              const SizedBox(height: 4),
+              const Text('• Acceso a los Ajustes del Scriptorium: Temas Claro Pergamino / Oscuro Carbón y Respaldo JSON.', style: TextStyle(fontSize: 12.5)),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cerrar'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: currentlyCustodio ? Colors.grey.shade700 : AppTheme.primaryGold,
+                foregroundColor: currentlyCustodio ? Colors.white : Colors.black,
+              ),
+              onPressed: () async {
+                if (profile != null) {
+                  final newPrefs = Map<String, dynamic>.from(profile.preferencias);
+                  newPrefs['esCustodio'] = !currentlyCustodio;
+                  final updated = profile.copyWith(preferencias: newPrefs);
+                  await ref.read(profileRepositoryProvider).updateProfile(updated);
+                  ref.invalidate(userProfileProvider);
+                }
+                if (ctx.mounted) Navigator.pop(ctx);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        !currentlyCustodio
+                            ? '¡Bienvenido como Custodio de la Palabra! Ajustes del Scriptorium desbloqueados.'
+                            : 'Has vuelto a la modalidad Camino Abierto.',
+                      ),
+                    ),
+                  );
+                }
+              },
+              child: Text(
+                currentlyCustodio
+                    ? 'Volver a Camino Abierto (Prueba)'
+                    : 'Activar Custodio de la Palabra',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
             ),
           ],
         );

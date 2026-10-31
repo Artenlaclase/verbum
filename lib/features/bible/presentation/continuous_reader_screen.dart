@@ -15,7 +15,7 @@ class ContinuousReaderScreen extends ConsumerStatefulWidget {
 
   const ContinuousReaderScreen({
     super.key,
-    this.initialBookId = 43, // San Juan por defecto
+    this.initialBookId = 1, // Génesis 1:1 por defecto (empezar en cero)
     this.initialChapter = 1,
     this.initialVerse = 1,
   });
@@ -45,10 +45,10 @@ class _ContinuousReaderScreenState extends ConsumerState<ContinuousReaderScreen>
   late int _nextChapterToLoad;
 
   // Marcador dinámico actual
-  int _activeBookId = 43;
+  int _activeBookId = 1;
   int _activeChapter = 1;
   int _activeVerse = 1;
-  String _activeRefText = 'Juan 1:1';
+  String _activeRefText = 'Génesis 1:1';
 
   // Preferencias visuales
   double _fontSize = 19.0;
@@ -147,6 +147,11 @@ class _ContinuousReaderScreenState extends ConsumerState<ContinuousReaderScreen>
 
     if (mounted) {
       setState(() {
+        if (isInitial) {
+          _activeBookId = book.id;
+          _activeChapter = _nextChapterToLoad;
+          _activeRefText = '${book.nombre} $_nextChapterToLoad:$_activeVerse';
+        }
         _loadedBlocks.add(_ChapterBlock(
           book: book,
           chapter: _nextChapterToLoad,
