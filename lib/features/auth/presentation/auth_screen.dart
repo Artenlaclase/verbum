@@ -19,6 +19,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     with SingleTickerProviderStateMixin {
   bool _isLogin = true;
   bool _isLoading = false;
+  bool _hasClosedAuthScreen = false;
   String? _errorMessage;
 
   final _emailController = TextEditingController();
@@ -50,7 +51,18 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     super.dispose();
   }
 
+  void _closeAuthScreen([bool? result]) {
+    if (_hasClosedAuthScreen || !mounted) return;
+    _hasClosedAuthScreen = true;
+    FocusManager.instance.primaryFocus?.unfocus();
+    final nav = Navigator.of(context);
+    if (nav.canPop()) {
+      nav.pop(result);
+    }
+  }
+
   Future<void> _handleGoogleSignIn() async {
+    FocusManager.instance.primaryFocus?.unfocus();
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -61,7 +73,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
       if (result != null && mounted) {
         // Migrar datos locales en segundo plano sin bloquear la navegación
         unawaited(FirestoreSyncService.instance.migrateLocalToFirestore());
-        Navigator.of(context).pop(true);
+        _closeAuthScreen(true);
       }
     } catch (e) {
       if (mounted) {
@@ -81,6 +93,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
 
   Future<void> _handleEmailAuth() async {
     if (!_formKey.currentState!.validate()) return;
+    FocusManager.instance.primaryFocus?.unfocus();
 
     setState(() {
       _isLoading = true;
@@ -134,7 +147,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
 
       // Migrar datos locales en segundo plano sin bloquear la navegación
       unawaited(FirestoreSyncService.instance.migrateLocalToFirestore());
-      if (mounted) Navigator.of(context).pop(true);
+      _closeAuthScreen(true);
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -455,7 +468,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
 
                         // Botón volver
                         TextButton.icon(
-                          onPressed: () => Navigator.of(context).pop(),
+                          onPressed: () => _closeAuthScreen(false),
                           icon: Icon(Icons.arrow_back, size: 16, color: subtleColor),
                           label: Text(
                             'Continuar sin cuenta',
@@ -653,6 +666,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     const int totalSeconds = 120; // 2 minutos para confirmar el correo
     int remainingSeconds = totalSeconds;
     bool isChecking = false;
+    bool dialogClosed = false;
+    bool pollInFlight = false;
     Timer? countdownTimer;
     Timer? pollTimer;
 
@@ -660,32 +675,43 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
       context: context,
       barrierDismissible: false,
       builder: (dialogCtx) {
+        void closeDialog(bool verified) {
+          if (dialogClosed) return;
+          dialogClosed = true;
+          countdownTimer?.cancel();
+          pollTimer?.cancel();
+          if (dialogCtx.mounted && Navigator.of(dialogCtx).canPop()) {
+            Navigator.of(dialogCtx).pop(verified);
+          }
+        }
+
         return StatefulBuilder(
           builder: (ctx, setDialogState) {
             countdownTimer ??= Timer.periodic(const Duration(seconds: 1), (t) {
-              if (!ctx.mounted) {
+              if (dialogClosed || !ctx.mounted) {
                 t.cancel();
                 return;
               }
               if (remainingSeconds <= 1) {
-                t.cancel();
-                pollTimer?.cancel();
-                Navigator.of(dialogCtx).pop(false);
+                closeDialog(false);
               } else {
                 setDialogState(() => remainingSeconds--);
               }
             });
 
             pollTimer ??= Timer.periodic(const Duration(seconds: 4), (t) async {
-              if (!ctx.mounted) {
-                t.cancel();
+              if (dialogClosed || pollInFlight || !ctx.mounted) {
+                if (dialogClosed || !ctx.mounted) t.cancel();
                 return;
               }
-              final verified = await AuthService.instance.checkEmailVerified();
-              if (verified && ctx.mounted) {
-                t.cancel();
-                countdownTimer?.cancel();
-                Navigator.of(dialogCtx).pop(true);
+              pollInFlight = true;
+              try {
+                final verified = await AuthService.instance.checkEmailVerified();
+                if (verified && !dialogClosed && ctx.mounted) {
+                  closeDialog(true);
+                }
+              } finally {
+                pollInFlight = false;
               }
             });
 
@@ -768,11 +794,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
               ),
               actions: [
                 TextButton(
-                  onPressed: () {
-                    countdownTimer?.cancel();
-                    pollTimer?.cancel();
-                    Navigator.of(dialogCtx).pop(false);
-                  },
+                  onPressed: () => closeDialog(false),
                   child: const Text(
                     'Cancelar / Corregir correo',
                     style: TextStyle(color: Colors.redAccent, fontSize: 12.5),
@@ -799,14 +821,13 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                   onPressed: isChecking
                       ? null
                       : () async {
+                          if (dialogClosed) return;
                           setDialogState(() => isChecking = true);
                           final verified = await AuthService.instance.checkEmailVerified();
-                          if (!ctx.mounted) return;
+                          if (dialogClosed || !ctx.mounted) return;
                           setDialogState(() => isChecking = false);
                           if (verified) {
-                            countdownTimer?.cancel();
-                            pollTimer?.cancel();
-                            Navigator.of(dialogCtx).pop(true);
+                            closeDialog(true);
                           } else {
                             ScaffoldMessenger.of(ctx).showSnackBar(
                               const SnackBar(
@@ -829,6 +850,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
       },
     );
 
+    dialogClosed = true;
     countdownTimer?.cancel();
     pollTimer?.cancel();
     return result == true;

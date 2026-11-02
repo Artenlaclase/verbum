@@ -22,6 +22,17 @@ class SavedPassagesScreen extends ConsumerWidget {
     if (!isAuthenticated) {
       return Scaffold(
         appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded),
+            tooltip: 'Volver a Inicio',
+            onPressed: () {
+              if (Navigator.of(context).canPop()) {
+                Navigator.of(context).pop();
+              } else {
+                ref.read(homeTabIndexProvider.notifier).setTab(0);
+              }
+            },
+          ),
           title: const Text('Mis Pasajes Guardados'),
         ),
         body: Center(
@@ -80,6 +91,17 @@ class SavedPassagesScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          tooltip: 'Volver a Inicio',
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            } else {
+              ref.read(homeTabIndexProvider.notifier).setTab(0);
+            }
+          },
+        ),
         title: const Text('Mis Pasajes Guardados'),
       ),
       body: Column(

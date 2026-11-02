@@ -27,6 +27,17 @@ class ProfileScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          tooltip: 'Volver a Inicio',
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            } else {
+              ref.read(homeTabIndexProvider.notifier).setTab(0);
+            }
+          },
+        ),
         title: const Text('Mi Perfil Devocional'),
       ),
       body: SingleChildScrollView(
@@ -207,10 +218,7 @@ class ProfileScreen extends ConsumerWidget {
                         );
                         return;
                       }
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const SavedPassagesScreen()),
-                      );
+                      ref.read(homeTabIndexProvider.notifier).setTab(3);
                     },
                   ),
                   const Divider(height: 1),
@@ -716,6 +724,8 @@ class ProfileScreen extends ConsumerWidget {
       ref.invalidate(bookmarkProvider);
       ref.invalidate(savedPassagesProvider);
       ref.invalidate(readingStatsProvider);
+      // Regresar automáticamente a Inicio (pestaña 0) al cerrar sesión
+      ref.read(homeTabIndexProvider.notifier).setTab(0);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Sesión cerrada. La aplicación ha vuelto a cero.')),

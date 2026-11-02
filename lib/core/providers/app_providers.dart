@@ -102,6 +102,16 @@ final bibleBooksProvider = FutureProvider<List<BibleBook>>((ref) async {
   return repo.getBooks(testamento: filter);
 });
 
+// Notifier para pestaña activa de la barra inferior en HomeScreen (0: Inicio, 1: Biblia, 2: Calendario, 3: Guardados, 4: Perfil)
+class HomeTabIndexNotifier extends Notifier<int> {
+  @override
+  int build() => 0;
+  void setTab(int index) => state = index.clamp(0, 4);
+}
+
+final homeTabIndexProvider =
+    NotifierProvider<HomeTabIndexNotifier, int>(HomeTabIndexNotifier.new);
+
 // Notifier para ThemeMode (claro / oscuro / sistema)
 class ThemeModeNotifier extends Notifier<ThemeMode> {
   @override

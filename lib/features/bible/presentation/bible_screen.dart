@@ -20,6 +20,11 @@ class BibleScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          tooltip: 'Volver a Inicio',
+          onPressed: () => ref.read(homeTabIndexProvider.notifier).setTab(0),
+        ),
         title: const Text('Sagrada Escritura'),
         actions: [
           IconButton(
