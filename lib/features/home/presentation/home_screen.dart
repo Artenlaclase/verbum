@@ -23,10 +23,14 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  int _currentIndex = 0;
+  void _setTab(int index) {
+    FocusManager.instance.primaryFocus?.unfocus();
+    ref.read(homeTabIndexProvider.notifier).setTab(index);
+  }
 
   @override
   Widget build(BuildContext context) {
+    final currentIndex = ref.watch(homeTabIndexProvider);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
@@ -39,41 +43,52 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       const ProfileScreen(),
     ];
 
-    return Scaffold(
-      body: SafeArea(
-        child: IndexedStack(
-          index: _currentIndex,
-          children: screens,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && currentIndex != 0) {
+          _setTab(0);
+        }
+      },
+      child: Scaffold(
+        body: SafeArea(
+          child: IndexedStack(
+            index: currentIndex,
+            children: screens,
+          ),
         ),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
-        selectedItemColor: AppTheme.primaryGold,
-        unselectedItemColor: isDark ? Colors.grey.shade600 : Colors.grey.shade500,
-        type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_rounded),
-            label: 'Inicio',
+        bottomNavigationBar: SafeArea(
+          top: false,
+          child: BottomNavigationBar(
+            currentIndex: currentIndex,
+            onTap: _setTab,
+            selectedItemColor: AppTheme.primaryGold,
+            unselectedItemColor: isDark ? Colors.grey.shade600 : Colors.grey.shade500,
+            type: BottomNavigationBarType.fixed,
+            items: const [
+              BottomNavigationBarItem(
+                icon: Icon(Icons.home_rounded),
+                label: 'Inicio',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.menu_book_rounded),
+                label: 'Biblia',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.calendar_month_rounded),
+                label: 'Calendario',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.bookmark_added_rounded),
+                label: 'Guardados',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.person_rounded),
+                label: 'Perfil',
+              ),
+            ],
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.menu_book_rounded),
-            label: 'Biblia',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_month_rounded),
-            label: 'Calendario',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.bookmark_added_rounded),
-            label: 'Guardados',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_rounded),
-            label: 'Perfil',
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -214,7 +229,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           TodayLiturgicalCard(
             day: liturgicalDay,
             onOpenCalendar: () {
-              setState(() => _currentIndex = 2); // Ir a pestaña de calendario
+              _setTab(2); // Ir a pestaña de calendario
             },
             onOpenReading: (reference) {
               Navigator.push(
@@ -229,7 +244,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
           // 4. REJILLA DE ACCESOS RÁPIDOS
           QuickActionsGrid(
-            onOpenBible: () => setState(() => _currentIndex = 1),
+            onOpenBible: () => _setTab(1),
             onOpenContinuous: () {
               final bm = bookmarkAsync.asData?.value;
               Navigator.push(
@@ -243,15 +258,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
               );
             },
-            onOpenCalendar: () => setState(() => _currentIndex = 2),
-            onOpenSaved: () => setState(() => _currentIndex = 3),
+            onOpenCalendar: () => _setTab(2),
+            onOpenSaved: () => _setTab(3),
             onOpenSearch: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const SearchScreen()),
               );
             },
-            onOpenProfile: () => setState(() => _currentIndex = 4),
+            onOpenProfile: () => _setTab(4),
           ),
           const SizedBox(height: 22),
 
