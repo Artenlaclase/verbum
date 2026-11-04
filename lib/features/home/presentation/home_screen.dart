@@ -6,6 +6,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../bible/presentation/bible_screen.dart';
 import '../../bible/presentation/continuous_reader_screen.dart';
 import '../../bible/presentation/search_screen.dart';
+import '../../forum/presentation/forum_screen.dart';
 import '../../liturgical_calendar/presentation/calendar_screen.dart';
 import '../../profile/models/bookmark.dart';
 import '../../profile/presentation/profile_screen.dart';
@@ -267,6 +268,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               );
             },
             onOpenProfile: () => _setTab(4),
+            onOpenForum: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ForumScreen()),
+              );
+            },
           ),
           const SizedBox(height: 22),
 

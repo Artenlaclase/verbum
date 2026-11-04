@@ -8,6 +8,7 @@ class QuickActionsGrid extends StatelessWidget {
   final VoidCallback onOpenSaved;
   final VoidCallback onOpenSearch;
   final VoidCallback onOpenProfile;
+  final VoidCallback? onOpenForum;
 
   const QuickActionsGrid({
     super.key,
@@ -17,6 +18,7 @@ class QuickActionsGrid extends StatelessWidget {
     required this.onOpenSaved,
     required this.onOpenSearch,
     required this.onOpenProfile,
+    this.onOpenForum,
   });
 
   @override
@@ -89,6 +91,15 @@ class QuickActionsGrid extends StatelessWidget {
               subtitle: 'Racha y datos',
               onTap: onOpenProfile,
             ),
+            if (onOpenForum != null)
+              _buildTile(
+                context: context,
+                icon: Icons.forum_rounded,
+                color: const Color(0xFFD38B28),
+                label: 'Foro Fraterno',
+                subtitle: 'Comunidad',
+                onTap: onOpenForum!,
+              ),
           ],
         ),
       ],
