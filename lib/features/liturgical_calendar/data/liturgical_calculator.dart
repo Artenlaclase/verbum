@@ -1,5 +1,6 @@
 import '../models/daily_reading.dart';
 import '../models/liturgical_day.dart';
+import 'liturgical_readings_data.dart';
 
 /// Motor de cálculo del Calendario Litúrgico Católico Romano
 /// Implementa el algoritmo de Meeus/Jones/Butcher para el Computus pascual
@@ -334,7 +335,13 @@ class LiturgicalCalculator {
       cicloDominical: cicloDom,
       cicloFerial: cicloFer,
       semanaTiempo: ordinaryWeek,
-      lecturas: _getOrdinaryReadings(date, cicloDom),
+      lecturas: LiturgicalReadingsData.getOrdinaryDailyReadings(
+        date: date,
+        week: ordinaryWeek,
+        weekday: date.weekday,
+        sundayCycle: cicloDom,
+        weekdayCycle: cicloFer,
+      ),
     );
   }
 
