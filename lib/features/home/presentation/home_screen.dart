@@ -12,7 +12,6 @@ import '../../profile/models/bookmark.dart';
 import '../../profile/presentation/profile_screen.dart';
 import '../../profile/presentation/saved_passages_screen.dart';
 import 'widgets/continue_reading_card.dart';
-import 'widgets/quick_actions_grid.dart';
 import 'widgets/today_liturgical_card.dart';
 import '../../thematic_suggestions/presentation/thematic_suggestions_widget.dart';
 
@@ -41,6 +40,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       const BibleScreen(),
       const CalendarScreen(),
       const SavedPassagesScreen(),
+      const ForumScreen(),
       const ProfileScreen(),
     ];
 
@@ -82,6 +82,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               BottomNavigationBarItem(
                 icon: Icon(Icons.bookmark_added_rounded),
                 label: 'Guardados',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.forum_rounded),
+                label: 'Foro',
               ),
               BottomNavigationBarItem(
                 icon: Icon(Icons.person_rounded),
@@ -238,40 +242,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 MaterialPageRoute(
                   builder: (_) => SearchScreen(initialQuery: reference),
                 ),
-              );
-            },
-          ),
-          const SizedBox(height: 22),
-
-          // 4. REJILLA DE ACCESOS RÁPIDOS
-          QuickActionsGrid(
-            onOpenBible: () => _setTab(1),
-            onOpenContinuous: () {
-              final bm = bookmarkAsync.asData?.value;
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ContinuousReaderScreen(
-                    initialBookId: bm?.libroId ?? 1,
-                    initialChapter: bm?.capitulo ?? 1,
-                    initialVerse: bm?.versiculo ?? 1,
-                  ),
-                ),
-              );
-            },
-            onOpenCalendar: () => _setTab(2),
-            onOpenSaved: () => _setTab(3),
-            onOpenSearch: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const SearchScreen()),
-              );
-            },
-            onOpenProfile: () => _setTab(4),
-            onOpenForum: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const ForumScreen()),
               );
             },
           ),

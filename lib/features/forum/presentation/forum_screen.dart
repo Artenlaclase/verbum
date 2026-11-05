@@ -41,8 +41,14 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
         appBar: AppBar(
           leading: IconButton(
             icon: const Icon(Icons.arrow_back_rounded),
-            tooltip: 'Volver',
-            onPressed: () => Navigator.of(context).maybePop(),
+            tooltip: 'Volver a Inicio',
+            onPressed: () {
+              if (Navigator.of(context).canPop()) {
+                Navigator.of(context).pop();
+              } else {
+                ref.read(homeTabIndexProvider.notifier).setTab(0);
+              }
+            },
           ),
           title: const Text('Comunidad Verbum'),
         ),
@@ -110,8 +116,14 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded),
-          tooltip: 'Volver',
-          onPressed: () => Navigator.of(context).maybePop(),
+          tooltip: 'Volver a Inicio',
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            } else {
+              ref.read(homeTabIndexProvider.notifier).setTab(0);
+            }
+          },
         ),
         title: const Text('Foro Fraterno Verbum'),
       ),
