@@ -8,6 +8,7 @@ import '../../../core/services/firestore_sync_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/liturgical_colors.dart';
 import '../../auth/presentation/auth_screen.dart';
+import '../../forum/presentation/forum_screen.dart';
 import '../models/user_profile.dart';
 import 'saved_passages_screen.dart';
 
@@ -241,6 +242,23 @@ class ProfileScreen extends ConsumerWidget {
                         return;
                       }
                       _showHistoryModal(context, ref);
+                    },
+                  ),
+                  const Divider(height: 1),
+                  ListTile(
+                    leading: const Icon(Icons.forum_rounded, color: Color(0xFF2A7B9B)),
+                    title: const Text('Foro de la Comunidad', style: TextStyle(fontWeight: FontWeight.w600)),
+                    subtitle: Text(
+                      isAuthenticated
+                          ? 'Peticiones de oración, preguntas y reflexiones'
+                          : 'Exclusivo para personas con sesión iniciada',
+                    ),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const ForumScreen()),
+                      );
                     },
                   ),
                 ],
