@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/providers/auth_providers.dart';
+import '../../../core/services/share_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../auth/presentation/auth_screen.dart';
 import '../../bible/presentation/search_screen.dart';
@@ -219,6 +220,17 @@ class SavedPassagesScreen extends ConsumerWidget {
                                 ),
                                 Row(
                                   children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.share_rounded, size: 18, color: AppTheme.primaryGold),
+                                      tooltip: 'Compartir',
+                                      onPressed: () {
+                                        ShareService.shareVerse(
+                                          context: context,
+                                          reference: p.referenciaCompleta,
+                                          text: p.textoSnapshot,
+                                        );
+                                      },
+                                    ),
                                     IconButton(
                                       icon: const Icon(Icons.copy_rounded, size: 18),
                                       tooltip: 'Copiar',

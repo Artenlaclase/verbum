@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/app_providers.dart';
+import '../../../core/services/share_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../models/bible_verse.dart';
 import 'chapter_reader_screen.dart';
@@ -252,7 +253,23 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                                                 fontSize: 15,
                                               ),
                                             ),
-                                            const Icon(Icons.arrow_forward_rounded, size: 16, color: Colors.grey),
+                                            Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                IconButton(
+                                                  icon: const Icon(Icons.share_rounded, size: 18, color: AppTheme.primaryGold),
+                                                  tooltip: 'Compartir versículo',
+                                                  onPressed: () {
+                                                    ShareService.shareVerse(
+                                                      context: context,
+                                                      reference: v.referencia,
+                                                      text: v.texto,
+                                                    );
+                                                  },
+                                                ),
+                                                const Icon(Icons.arrow_forward_rounded, size: 16, color: Colors.grey),
+                                              ],
+                                            ),
                                           ],
                                         ),
                                         const SizedBox(height: 6),
