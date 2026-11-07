@@ -19,7 +19,60 @@ class ThematicSuggestionsWidget extends ConsumerStatefulWidget {
 
 class _ThematicSuggestionsWidgetState
     extends ConsumerState<ThematicSuggestionsWidget> {
-  ThematicCategoryType _selectedCategory = ThematicCategoryType.armonia;
+  ThematicCategoryType _selectedCategory = ThematicCategoryType.amor;
+  final ScrollController _scrollController = ScrollController();
+  bool _canScrollRight = true;
+  bool _canScrollLeft = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_updateScrollArrows);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _updateScrollArrows());
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_updateScrollArrows);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _updateScrollArrows() {
+    if (!_scrollController.hasClients) return;
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    final offset = _scrollController.offset;
+    final nextRight = maxScroll > 4 && offset < maxScroll - 8;
+    final nextLeft = offset > 8;
+    if (nextRight != _canScrollRight || nextLeft != _canScrollLeft) {
+      setState(() {
+        _canScrollRight = nextRight;
+        _canScrollLeft = nextLeft;
+      });
+    }
+  }
+
+  void _scrollRight() {
+    if (!_scrollController.hasClients) return;
+    final target = (_scrollController.offset + 210.0)
+        .clamp(0.0, _scrollController.position.maxScrollExtent);
+    _scrollController.animateTo(
+      target,
+      duration: const Duration(milliseconds: 320),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  void _scrollLeft() {
+    if (!_scrollController.hasClients) return;
+    final target = (_scrollController.offset - 210.0)
+        .clamp(0.0, _scrollController.position.maxScrollExtent);
+    _scrollController.animateTo(
+      target,
+      duration: const Duration(milliseconds: 320),
+      curve: Curves.easeOutCubic,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -34,113 +87,240 @@ class _ThematicSuggestionsWidgetState
     );
 
     final catColor = currentSuggestion.category.color;
+    final surfaceBg = isDark ? const Color(0xFF1A1C21) : const Color(0xFFFCF9F2);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Encabezado de la sección
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryGold.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(
-                    Icons.auto_awesome_rounded,
-                    size: 16,
-                    color: AppTheme.primaryGold,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'GUÍA BÍBLICA PARA TU DÍA',
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    color: AppTheme.primaryGold,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1.1,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-            Text(
-              '5 temas de vida',
-              style: TextStyle(
-                fontSize: 11,
-                color: isDark ? Colors.white38 : Colors.black45,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-          ],
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isDark
+              ? [
+                  const Color(0xFF23201A),
+                  const Color(0xFF191B20),
+                ]
+              : [
+                  const Color(0xFFFFF8E8),
+                  const Color(0xFFFDFBF7),
+                ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        const SizedBox(height: 6),
-        Text(
-          'Encuentra luz en la Palabra para lo que tu corazón necesita hoy:',
-          style: TextStyle(
-            fontSize: 13,
-            color: isDark ? Colors.white70 : Colors.black87,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: AppTheme.primaryGold.withValues(alpha: 0.35),
+          width: 1.3,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primaryGold.withValues(alpha: isDark ? 0.06 : 0.10),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
           ),
-        ),
-        const SizedBox(height: 14),
-
-        // Barra horizontal de categorías (pills con emojis)
-        SizedBox(
-          height: 42,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            itemCount: ThematicCategoryType.values.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 8),
-            itemBuilder: (context, index) {
-              final cat = ThematicCategoryType.values[index];
-              final isSelected = cat == _selectedCategory;
-              final pillColor = cat.color;
-
-              return AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                child: ChoiceChip(
-                  avatar: Text(cat.emoji, style: const TextStyle(fontSize: 14)),
-                  label: Text(
-                    cat.title,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                      color: isSelected
-                          ? Colors.white
-                          : (isDark ? Colors.white70 : Colors.black87),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Encabezado atractivo de la sección
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(7),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          AppTheme.primaryGold,
+                          AppTheme.primaryGold.withValues(alpha: 0.75),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(10),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.primaryGold.withValues(alpha: 0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.auto_awesome_rounded,
+                      size: 16,
+                      color: Colors.black,
                     ),
                   ),
-                  selected: isSelected,
-                  selectedColor: pillColor,
-                  backgroundColor: isDark
-                      ? const Color(0xFF22252B)
-                      : const Color(0xFFF0EBE1),
-                  elevation: isSelected ? 3 : 0,
-                  pressElevation: 1,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                    side: BorderSide(
-                      color: isSelected
-                          ? pillColor
-                          : (isDark ? Colors.white10 : Colors.black12),
-                    ),
+                  const SizedBox(width: 10),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'GUÍA BÍBLICA PARA TU DÍA',
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          color: AppTheme.primaryGold,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.2,
+                          fontSize: 12.5,
+                        ),
+                      ),
+                      Text(
+                        'Luz de la Palabra para tu corazón hoy',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: isDark ? Colors.white60 : Colors.black54,
+                        ),
+                      ),
+                    ],
                   ),
-                  onSelected: (val) {
-                    if (val) {
-                      setState(() => _selectedCategory = cat);
-                    }
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryGold.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text(
+                  '5 temas',
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.primaryGold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          // Barra horizontal de categorías con flechas indicadoras para móvil
+          SizedBox(
+            height: 44,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                ListView.separated(
+                  controller: _scrollController,
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  padding: EdgeInsets.only(
+                    left: _canScrollLeft ? 34 : 0,
+                    right: _canScrollRight ? 34 : 0,
+                  ),
+                  itemCount: ThematicCategoryType.values.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 8),
+                  itemBuilder: (context, index) {
+                    final cat = ThematicCategoryType.values[index];
+                    final isSelected = cat == _selectedCategory;
+                    final pillColor = cat.color;
+
+                    return AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      child: ChoiceChip(
+                        avatar: Text(cat.emoji, style: const TextStyle(fontSize: 14)),
+                        label: Text(
+                          cat.title,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                            color: isSelected
+                                ? Colors.white
+                                : (isDark ? Colors.white70 : Colors.black87),
+                          ),
+                        ),
+                        selected: isSelected,
+                        selectedColor: pillColor,
+                        backgroundColor: isDark
+                            ? const Color(0xFF252830)
+                            : const Color(0xFFF2ECE1),
+                        elevation: isSelected ? 3 : 0,
+                        pressElevation: 1,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                          side: BorderSide(
+                            color: isSelected
+                                ? pillColor
+                                : (isDark ? Colors.white12 : Colors.black12),
+                          ),
+                        ),
+                        onSelected: (val) {
+                          if (val) {
+                            setState(() => _selectedCategory = cat);
+                          }
+                        },
+                      ),
+                    );
                   },
                 ),
-              );
-            },
+
+                // Flecha izquierda cuando se ha desplazado
+                if (_canScrollLeft)
+                  Positioned(
+                    left: 0,
+                    child: GestureDetector(
+                      onTap: _scrollLeft,
+                      child: Container(
+                        height: 36,
+                        width: 30,
+                        decoration: BoxDecoration(
+                          color: surfaceBg.withValues(alpha: 0.95),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: AppTheme.primaryGold.withValues(alpha: 0.45),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.15),
+                              blurRadius: 6,
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.chevron_left_rounded,
+                          size: 20,
+                          color: AppTheme.primaryGold,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                // Flecha derecha indicadora para pantallas móviles
+                if (_canScrollRight)
+                  Positioned(
+                    right: 0,
+                    child: GestureDetector(
+                      onTap: _scrollRight,
+                      child: Container(
+                        height: 34,
+                        width: 34,
+                        decoration: BoxDecoration(
+                          color: surfaceBg.withValues(alpha: 0.96),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: AppTheme.primaryGold.withValues(alpha: 0.55),
+                            width: 1.2,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.15),
+                              blurRadius: 6,
+                              offset: const Offset(-2, 1),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.chevron_right_rounded,
+                          size: 22,
+                          color: AppTheme.primaryGold,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(height: 14),
+          const SizedBox(height: 14),
 
         // Tarjeta devocional interactiva del tema seleccionado
         AnimatedSwitcher(
@@ -328,6 +508,7 @@ class _ThematicSuggestionsWidgetState
           ),
         ),
       ],
+      ),
     );
   }
 }

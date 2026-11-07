@@ -3,8 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/providers/app_providers.dart';
+import '../../../core/services/auth_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/liturgical_colors.dart';
+import '../../auth/presentation/auth_screen.dart';
 import '../../profile/models/saved_passage.dart';
 import '../models/bible_book.dart';
 import '../models/bible_verse.dart';
@@ -241,6 +243,7 @@ class _ChapterReaderScreenState extends ConsumerState<ChapterReaderScreen> {
                   subtitle: const Text('Guardar pasaje con etiquetas y notas'),
                   onTap: () {
                     Navigator.pop(ctx);
+                    if (!_requireAuthForStudy('guardar pasajes favoritos')) return;
                     _showSavePassageDialog(verse);
                   },
                 ),
@@ -249,6 +252,7 @@ class _ChapterReaderScreenState extends ConsumerState<ChapterReaderScreen> {
                   title: const Text('Añadir nota personal'),
                   onTap: () {
                     Navigator.pop(ctx);
+                    if (!_requireAuthForStudy('añadir notas personales')) return;
                     _showAddNoteDialog(verse);
                   },
                 ),
@@ -285,15 +289,66 @@ class _ChapterReaderScreenState extends ConsumerState<ChapterReaderScreen> {
     );
   }
 
+  bool _requireAuthForStudy(String actionLabel) {
+    if (AuthService.instance.isSignedIn) return true;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: const Row(
+          children: [
+            Icon(Icons.lock_person_rounded, color: AppTheme.primaryGold),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Inicia sesión requerida',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'Para $actionLabel y sincronizar tu estudio personal necesitas iniciar sesión en tu cuenta Verbum.',
+          style: const TextStyle(fontSize: 13.5, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryGold,
+              foregroundColor: Colors.black,
+            ),
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AuthScreen()),
+              );
+            },
+            child: const Text(
+              'Iniciar Sesión',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+    return false;
+  }
+
   Widget _buildColorDot(BibleVerse verse, String colorHex) {
     return InkWell(
       onTap: () async {
+        Navigator.pop(context);
+        if (!_requireAuthForStudy('subrayar versículos')) return;
         final profileRepo = ref.read(profileRepositoryProvider);
         await profileRepo.addHighlight(verse.id, colorHex);
         setState(() {
           _highlights[verse.id] = colorHex;
         });
-        Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Versículo resaltado')),
         );
@@ -437,6 +492,26 @@ class _ChapterReaderScreenState extends ConsumerState<ChapterReaderScreen> {
                     foregroundColor: Colors.black,
                   ),
                   onPressed: () async {
+                    final isCustodio = ref.read(isCustodioProvider);
+                    final profileRepo = ref.read(profileRepositoryProvider);
+                    if (!isCustodio) {
+                      final existing = await profileRepo.getSavedPassages();
+                      if (existing.length >= VerbumPlanLimits.maxFreePassages) {
+                        if (dCtx.mounted) Navigator.pop(dCtx);
+                        if (mounted) {
+                          ScaffoldMessenger.of(this.context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Has alcanzado los 5 pasajes de Camino Abierto. Únete como «Custodio de la Palabra» en tu Perfil para guardar sin límite.',
+                              ),
+                              duration: Duration(seconds: 4),
+                            ),
+                          );
+                        }
+                        return;
+                      }
+                    }
+
                     final passage = SavedPassage(
                       perfilId: 1,
                       titulo: titleController.text.trim().isNotEmpty ? titleController.text.trim() : null,
@@ -451,15 +526,16 @@ class _ChapterReaderScreenState extends ConsumerState<ChapterReaderScreen> {
                       notas: noteController.text.trim().isNotEmpty ? noteController.text.trim() : null,
                     );
 
-                    final profileRepo = ref.read(profileRepositoryProvider);
                     await profileRepo.savePassage(passage);
                     ref.invalidate(savedPassagesProvider);
                     ref.invalidate(readingStatsProvider);
 
-                    Navigator.pop(dCtx);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Pasaje guardado en tu perfil (${selectedTag})')),
-                    );
+                    if (dCtx.mounted) Navigator.pop(dCtx);
+                    if (mounted) {
+                      ScaffoldMessenger.of(this.context).showSnackBar(
+                        SnackBar(content: Text('Pasaje guardado en tu perfil ($selectedTag)')),
+                      );
+                    }
                   },
                   child: const Text('Guardar'),
                 ),

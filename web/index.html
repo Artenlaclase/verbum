@@ -1,49 +1,58 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
   <title>Verbum — Sagrada Escritura y Calendario Litúrgico</title>
-  <meta name="description" content="Verbum: Biblia completa Reina-Valera 1909, Calendario Litúrgico Católico con algoritmo Computus, lectura continua, pasajes guardados y guía bíblica diaria.">
+  <meta name="description"
+    content="Verbum: Biblia completa Reina-Valera 1909, Calendario Litúrgico Católico con algoritmo Computus, lectura continua, pasajes guardados y guía bíblica diaria.">
   <meta name="author" content="Verbum">
   <meta name="theme-color" content="#C9A227">
 
   <!-- Open Graph / Redes Sociales -->
   <meta property="og:type" content="website">
   <meta property="og:title" content="Verbum — Sagrada Escritura y Calendario Litúrgico">
-  <meta property="og:description" content="Biblia RVR09 completa offline, tiempos y lecturas litúrgicas, modo corrido continuo y sugerencias bíblicas diarias.">
+  <meta property="og:description"
+    content="Biblia RVR09 completa offline, tiempos y lecturas litúrgicas, modo corrido continuo y sugerencias bíblicas diarias.">
   <meta property="og:site_name" content="Verbum">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Verbum">
-  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png?v=3">
 
-  <!-- Favicon -->
-  <link rel="icon" type="image/png" href="favicon.png"/>
-  <link rel="manifest" href="manifest.json">
+  <!-- Favicon (Librito Sagrado Verbum — inline data URI + archivos estáticos para evitar caché de Chrome/Vercel) -->
+  <link rel="icon" type="image/svg+xml"
+    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='2' y='2' width='60' height='60' rx='14' fill='%2316130E' stroke='%23C9A227' stroke-width='3'/%3E%3Cpath d='M10 18 C10 15.5, 22 14, 32 18 C42 14, 54 15.5, 54 18 L54 47 C54 49, 42 47.5, 32 51.5 C22 47.5, 10 49, 10 47 Z' fill='%23C9A227'/%3E%3Cpath d='M13 16 C19 13.5, 26 14.5, 32 18.5 L32 48.5 C26 44.5, 19 43.5, 13 46 Z' fill='%23FAF6EC'/%3E%3Cpath d='M51 16 C45 13.5, 38 14.5, 32 18.5 L32 48.5 C38 44.5, 45 43.5, 51 46 Z' fill='%23FAF6EC'/%3E%3Cline x1='32' y1='18' x2='32' y2='49' stroke='%23C9A227' stroke-width='2'/%3E%3Cline x1='17' y1='24' x2='28' y2='25' stroke='%238C734B' stroke-width='2' stroke-linecap='round'/%3E%3Cline x1='17' y1='30' x2='28' y2='31' stroke='%238C734B' stroke-width='2' stroke-linecap='round'/%3E%3Cline x1='17' y1='36' x2='26' y2='37' stroke='%238C734B' stroke-width='2' stroke-linecap='round'/%3E%3Cline x1='41.5' y1='22' x2='41.5' y2='37' stroke='%23C9A227' stroke-width='2.6' stroke-linecap='round'/%3E%3Cline x1='36.5' y1='27' x2='46.5' y2='27' stroke='%23C9A227' stroke-width='2.6' stroke-linecap='round'/%3E%3Cpath d='M30 48.5 L30 57 L32 55 L34 57 L34 48.5 Z' fill='%23B22234'/%3E%3C/svg%3E" />
+  <link rel="alternate icon" type="image/svg+xml" href="favicon.svg?v=3" />
+  <link rel="alternate icon" type="image/png" href="favicon.png?v=3" />
+  <link rel="shortcut icon" href="favicon.ico?v=3" />
+  <link rel="manifest" href="manifest.json?v=3">
 
   <style>
+    html,
     body {
       margin: 0;
       padding: 0;
+      width: 100%;
+      height: 100%;
       background-color: #0D0F12;
       color: #E6D5B8;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       overflow: hidden;
-      height: 100vh;
-      width: 100vw;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      overscroll-behavior: none;
     }
 
     #loading-container {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background-color: #0D0F12;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -107,15 +116,25 @@
     }
 
     @keyframes spin {
-      to { transform: rotate(360deg); }
+      to {
+        transform: rotate(360deg);
+      }
     }
 
     @keyframes fadeIn {
-      from { opacity: 0; transform: scale(0.96); }
-      to { opacity: 1; transform: scale(1); }
+      from {
+        opacity: 0;
+        transform: scale(0.96);
+      }
+
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
     }
   </style>
 </head>
+
 <body>
   <div id="loading-container">
     <div class="emblem">
@@ -127,6 +146,22 @@
     <div class="spinner"></div>
   </div>
 
+  <script>
+    // Eliminar el contenedor de carga apenas Flutter pinte el primer frame
+    window.addEventListener('flutter-first-frame', function () {
+      var loader = document.getElementById('loading-container');
+      if (loader && loader.parentNode) {
+        loader.parentNode.removeChild(loader);
+      }
+    });
+    // Restaurar posición del viewport móvil cuando se cierra el teclado virtual
+    window.addEventListener('focusout', function () {
+      setTimeout(function () {
+        window.scrollTo(0, 0);
+      }, 60);
+    });
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
+
 </html>

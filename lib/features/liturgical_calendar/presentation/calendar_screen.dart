@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/providers/app_providers.dart';
 import '../../../core/theme/liturgical_colors.dart';
 import '../../bible/presentation/search_screen.dart';
 import '../data/liturgical_calculator.dart';
@@ -55,6 +56,11 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          tooltip: 'Volver a Inicio',
+          onPressed: () => ref.read(homeTabIndexProvider.notifier).setTab(0),
+        ),
         title: const Text('Calendario Litúrgico'),
         actions: [
           IconButton(

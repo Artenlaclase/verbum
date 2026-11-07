@@ -5,11 +5,13 @@ import '../../../profile/models/bookmark.dart';
 class ContinueReadingCard extends StatelessWidget {
   final Bookmark? bookmark;
   final VoidCallback onTap;
+  final VoidCallback? onResetToZero;
 
   const ContinueReadingCard({
     super.key,
     required this.bookmark,
     required this.onTap,
+    this.onResetToZero,
   });
 
   @override
@@ -17,8 +19,15 @@ class ContinueReadingCard extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    final ref = bookmark?.referencia ?? 'San Juan 1:1';
-    final bookName = bookmark?.libroNombre ?? 'Evangelio según San Juan';
+    final isAtStart = bookmark == null ||
+        (bookmark!.libroId == 1 &&
+            bookmark!.capitulo == 1 &&
+            bookmark!.versiculo == 1);
+
+    final ref = bookmark?.referencia ?? 'Gn 1:1';
+    final bookName = bookmark?.libroNombre ?? 'Génesis';
+    final actionTitle = isAtStart ? 'Comenzar en $ref' : 'Continuar en $ref';
+    final statusSubtitle = isAtStart ? 'Desde el principio (Paso 0)' : 'Última lectura';
 
     return InkWell(
       onTap: onTap,
@@ -86,18 +95,22 @@ class ContinueReadingCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        'Última lectura',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
+                      Expanded(
+                        child: Text(
+                          statusSubtitle,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Continuar en $ref',
+                    actionTitle,
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                       fontSize: 17,
@@ -114,6 +127,19 @@ class ContinueReadingCard extends StatelessWidget {
                 ],
               ),
             ),
+
+            if (!isAtStart && onResetToZero != null) ...[
+              IconButton(
+                tooltip: 'Reiniciar Modo Corrido desde cero (Génesis 1:1)',
+                onPressed: onResetToZero,
+                icon: Icon(
+                  Icons.restart_alt_rounded,
+                  size: 20,
+                  color: theme.textTheme.bodyMedium?.color?.withOpacity(0.55),
+                ),
+              ),
+              const SizedBox(width: 4),
+            ],
 
             // Flecha de acción
             Container(

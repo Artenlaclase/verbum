@@ -20,6 +20,11 @@ class BibleScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          tooltip: 'Volver a Inicio',
+          onPressed: () => ref.read(homeTabIndexProvider.notifier).setTab(0),
+        ),
         title: const Text('Sagrada Escritura'),
         actions: [
           IconButton(
@@ -40,7 +45,7 @@ class BibleScreen extends ConsumerWidget {
                 context,
                 MaterialPageRoute(
                   builder: (_) => const ContinuousReaderScreen(
-                    initialBookId: 43, // Juan
+                    initialBookId: 1, // Génesis 1:1 (empezar en cero)
                     initialChapter: 1,
                   ),
                 ),
