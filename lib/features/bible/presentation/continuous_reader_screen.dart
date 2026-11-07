@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/services/auth_service.dart';
+import '../../../core/services/share_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/liturgical_colors.dart';
 import '../../auth/presentation/auth_screen.dart';
@@ -474,6 +475,19 @@ class _ContinuousReaderScreenState extends ConsumerState<ContinuousReaderScreen>
                       _activeRefText = fullRef;
                     });
                     _saveCurrentBookmark(silent: false);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.share_rounded, color: AppTheme.primaryGold),
+                  title: const Text('Compartir versículo', style: TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle: const Text('WhatsApp, redes o en el Foro Verbum'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    ShareService.shareVerse(
+                      context: context,
+                      reference: fullRef,
+                      text: verse.texto,
+                    );
                   },
                 ),
                 ListTile(
