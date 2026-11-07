@@ -15,16 +15,29 @@ service cloud.firestore {
 
     // Foro de la comunidad Verbum (solo personas con sesión iniciada)
     match /forum_topics/{topicId} {
-      // Lectura y creación permitida a todo usuario con sesión iniciada
-      allow read, create: if request.auth != null;
-      // Actualizar (ej. likes o contador de respuestas) para cualquier usuario autenticado
-      allow update: if request.auth != null;
+      // Lectura permitida a usuarios autenticados
+      allow read: if request.auth != null;
+      
+      // Creación: debe estar autenticado y el autor_uid debe coincidir exactamente con el usuario autenticado
+      allow create: if request.auth != null && request.resource.data.autor_uid == request.auth.uid;
+      
+      // Actualización protegida:
+      // 1) El autor puede actualizar su propio tema (sin reasignar autor_uid)
+      // 2) O cualquier usuario autenticado puede alternar 'likes' o 'respuestas_count' sin modificar el contenido ni autor
+      allow update: if request.auth != null && (
+        (request.auth.uid == resource.data.autor_uid && request.resource.data.autor_uid == resource.data.autor_uid)
+        ||
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'respuestas_count']) &&
+         request.resource.data.autor_uid == resource.data.autor_uid)
+      );
+      
       // Solo el autor puede eliminar su propio tema
       allow delete: if request.auth != null && request.auth.uid == resource.data.autor_uid;
 
       // Respuestas dentro del tema
       match /replies/{replyId} {
-        allow read, create: if request.auth != null;
+        allow read: if request.auth != null;
+        allow create: if request.auth != null && request.resource.data.autor_uid == request.auth.uid;
         allow update, delete: if request.auth != null && request.auth.uid == resource.data.autor_uid;
       }
     }
