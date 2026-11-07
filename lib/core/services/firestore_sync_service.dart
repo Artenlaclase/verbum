@@ -18,7 +18,7 @@ class FirestoreSyncService {
 
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  static const Duration _timeout = Duration(seconds: 4);
+  static const Duration _timeout = Duration(seconds: 10);
 
   String? get _uid => AuthService.instance.uid;
   bool get _hasUser => _uid != null;
@@ -134,20 +134,22 @@ class FirestoreSyncService {
   Future<List<SavedPassage>> getSavedPassages({String? etiqueta}) async {
     if (!_hasUser) return [];
     try {
-      Query<Map<String, dynamic>> query = _userDoc()
-          .collection('passages')
-          .orderBy('fecha_guardado', descending: true);
+      Query<Map<String, dynamic>> query = _userDoc().collection('passages');
 
       if (etiqueta != null && etiqueta != 'Todos') {
         query = query.where('etiqueta', isEqualTo: etiqueta);
+      } else {
+        query = query.orderBy('fecha_guardado', descending: true);
       }
 
       final snap = await query.get().timeout(_timeout);
-      return snap.docs.map((d) {
+      final list = snap.docs.map((d) {
         final data = d.data();
         data['id'] = int.tryParse(d.id) ?? d.id.hashCode;
         return SavedPassage.fromMap(data);
       }).toList();
+      list.sort((a, b) => b.fechaGuardado.compareTo(a.fechaGuardado));
+      return list;
     } catch (e) {
       debugPrint('FirestoreSyncService getSavedPassages: $e');
     }
