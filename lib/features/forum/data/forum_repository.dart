@@ -13,17 +13,21 @@ class ForumRepository {
 
   /// Stream de todos los temas ordenados por fecha de creación descendente
   Stream<List<ForumTopic>> getTopicsStream({String? categoria}) {
-    Query<Map<String, dynamic>> query =
-        _topicsCollection.orderBy('fecha_creacion', descending: true);
+    Query<Map<String, dynamic>> query = _topicsCollection;
 
     if (categoria != null && categoria != 'Todos') {
       query = query.where('categoria', isEqualTo: categoria);
+    } else {
+      query = query.orderBy('fecha_creacion', descending: true);
     }
 
     return query.snapshots().map((snapshot) {
-      return snapshot.docs
+      final list = snapshot.docs
           .map((doc) => ForumTopic.fromMap(doc.id, doc.data()))
           .toList();
+      // Ordenamiento en memoria para no requerir índice compuesto en Firestore
+      list.sort((a, b) => b.fechaCreacion.compareTo(a.fechaCreacion));
+      return list;
     });
   }
 
